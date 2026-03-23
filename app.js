@@ -567,6 +567,43 @@ window.confirmDeleteQuiz = async (quizId, quizTitle) => {
 // TEACHER RESULTS LOGIC
 // ----------------------------------------------------
 let currentResultsQuizId = null;
+let namesHidden = false;
+
+document.getElementById('toggle-names-btn').onclick = function() {
+    namesHidden = !namesHidden;
+    this.innerHTML = namesHidden 
+        ? `<ion-icon name="eye-outline"></ion-icon> Show Names` 
+        : `<ion-icon name="eye-off-outline"></ion-icon> Hide Names`;
+    
+    const resultsTbody = document.getElementById('results-tbody');
+    const rows = resultsTbody.querySelectorAll('tr');
+    rows.forEach(row => {
+        const nameCell = row.cells[0];
+        const emailCell = row.cells[1];
+        if (nameCell && emailCell) {
+            if (namesHidden) {
+                nameCell.dataset.originalContent = nameCell.innerHTML;
+                emailCell.dataset.originalContent = emailCell.innerHTML;
+                nameCell.innerHTML = `<span class="text-gray-300 italic">Hidden for Privacy</span>`;
+                emailCell.innerHTML = `<span class="text-gray-300 italic">***@***</span>`;
+            } else {
+                nameCell.innerHTML = nameCell.dataset.originalContent || nameCell.innerHTML;
+                emailCell.innerHTML = emailCell.dataset.originalContent || emailCell.innerHTML;
+            }
+        }
+    });
+
+    // Also toggle in item analysis if applicable
+    const analysisNames = document.querySelectorAll('.student-name-tag');
+    analysisNames.forEach(tag => {
+        if (namesHidden) {
+            tag.dataset.originalContent = tag.innerHTML;
+            tag.innerHTML = "Hidden";
+        } else {
+            tag.innerHTML = tag.dataset.originalContent || tag.innerHTML;
+        }
+    });
+};
 
 document.getElementById('class-filter').onchange = () => {
     if (currentResultsQuizId) viewResults(currentResultsQuizId);
@@ -639,12 +676,17 @@ window.viewResults = async (quizId) => {
         const studentData = studentMap[att.studentEmail.toLowerCase()] || {};
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 transition-colors";
+        
+        const displayName = namesHidden ? `<span class="text-gray-300 italic">Hidden for Privacy</span>` : `${att.studentName} ${studentData.class ? `<span class="ml-2 bg-gray-100 text-gray-500 text-[9px] px-2 py-0.5 rounded uppercase font-black tracking-widest">${studentData.class}</span>` : ''}`;
+        const displayEmail = namesHidden ? `<span class="text-gray-300 italic">***@***</span>` : att.studentEmail;
+        
         row.innerHTML = `
-            <td class="px-6 py-5 font-bold text-gray-800 text-sm">
-                ${att.studentName}
-                ${studentData.class ? `<span class="ml-2 bg-gray-100 text-gray-500 text-[9px] px-2 py-0.5 rounded uppercase font-black tracking-widest">${studentData.class}</span>` : ''}
+            <td class="px-6 py-5 font-bold text-gray-800 text-sm" data-original-content='${att.studentName} ${studentData.class ? `<span class="ml-2 bg-gray-100 text-gray-500 text-[9px] px-2 py-0.5 rounded uppercase font-black tracking-widest">${studentData.class}</span>` : ''}'>
+                ${displayName}
             </td>
-            <td class="px-6 py-5 text-xs text-gray-400 font-mono">${att.studentEmail}</td>
+            <td class="px-6 py-5 text-xs text-gray-400 font-mono" data-original-content='${att.studentEmail}'>
+                ${displayEmail}
+            </td>
             <td class="px-6 py-5 font-black text-sm ${att.score >= att.totalQuestions / 2 ? 'text-green-600' : 'text-red-500'}">${att.score} / ${att.totalQuestions}</td>
             <td class="px-6 py-5 text-[10px] text-gray-400 uppercase font-bold tracking-widest">${att.submittedAt?.toDate().toLocaleDateString()}</td>
         `;

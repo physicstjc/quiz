@@ -1,0 +1,1027 @@
+
+import { firebaseConfig } from './firebase-config.js';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, doc, getDoc, deleteDoc, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const googleProvider = new GoogleAuthProvider();
+
+// App State
+let currentUser = null;
+let userRole = null; // 'teacher' or 'student'
+
+// Navigation and Layout elements
+const navbar = document.getElementById('navbar');
+const views = {
+    login: document.getElementById('view-login'),
+    student: document.getElementById('view-student'),
+    teacher: document.getElementById('view-teacher'),
+    quizBuilder: document.getElementById('view-quiz-builder'),
+    quizRoom: document.getElementById('view-quiz-room'),
+    teacherResults: document.getElementById('view-teacher-results'),
+    attemptDetail: document.getElementById('view-attempt-detail'),
+    manageStudents: document.getElementById('view-manage-students')
+};
+
+// UI Components
+const navUserName = document.getElementById('nav-user-name');
+const navUserEmail = document.getElementById('nav-user-email');
+const userRoleBadge = document.getElementById('user-role-badge');
+const logoutBtn = document.getElementById('logout-btn');
+const errorMessage = document.getElementById('error-message');
+const loginGoogleBtn = document.getElementById('login-google-btn');
+
+// Show View helper
+function showView(viewName) {
+    Object.values(views).forEach(v => v.classList.add('hidden'));
+    views[viewName].classList.remove('hidden');
+    
+    // Manage Navbar visibility
+    if (viewName === 'login') {
+        navbar.classList.add('hidden');
+    } else {
+        navbar.classList.remove('hidden');
+    }
+}
+
+// Authentication Logic
+onAuthStateChanged(auth, (user) => {
+    console.log("Auth state changed:", user);
+    if (user) {
+        const email = user.email;
+        console.log("Logged in with email:", email);
+        if (email.endsWith('@moe.edu.sg')) {
+            userRole = 'teacher';
+            userRoleBadge.innerText = 'TEACHER';
+            userRoleBadge.classList.replace('bg-blue-100', 'bg-purple-100');
+            userRoleBadge.classList.replace('text-blue-700', 'text-purple-700');
+        } else if (email.endsWith('@students.edu.sg')) {
+            userRole = 'student';
+            userRoleBadge.innerText = 'STUDENT';
+            userRoleBadge.classList.replace('bg-purple-100', 'bg-blue-100');
+            userRoleBadge.classList.replace('text-purple-700', 'text-blue-700');
+        } else {
+            // Unauthorized domain
+            signOut(auth);
+            showError("Your email domain is not authorized. Use @moe.edu.sg or @students.edu.sg.");
+            return;
+        }
+
+        currentUser = user;
+        navUserName.innerText = user.displayName;
+        navUserEmail.innerText = email;
+        userRoleBadge.classList.remove('invisible');
+
+        // Check if user is in prepopulated list to use their full name
+        const emailLower = email.toLowerCase();
+        getDoc(doc(db, "students", emailLower)).then(studentDoc => {
+            console.log("Checking student name for:", emailLower);
+            if (studentDoc.exists()) {
+                console.log("Found student name:", studentDoc.data().name);
+                navUserName.innerText = studentDoc.data().name;
+            } else {
+                console.log("Student not found in list, using Google name.");
+            }
+        });
+        
+        if (userRole === 'teacher') {
+            showView('teacher');
+            refreshTeacherDashboard();
+        } else {
+            showView('student');
+            refreshStudentDashboard();
+        }
+    } else {
+        currentUser = null;
+        userRole = null;
+        showView('login');
+    }
+});
+
+function showError(msg) {
+    errorMessage.innerText = msg;
+    errorMessage.classList.remove('hidden');
+}
+
+loginGoogleBtn.onclick = () => {
+    signInWithPopup(auth, googleProvider).catch(err => showError(err.message));
+};
+
+logoutBtn.onclick = () => {
+    signOut(auth);
+};
+
+// ----------------------------------------------------
+// TEACHER DASHBOARD LOGIC
+// ----------------------------------------------------
+const addQuizBtn = document.getElementById('add-quiz-btn');
+const manageStudentsBtn = document.getElementById('manage-students-btn');
+const teacherQuizList = document.getElementById('teacher-quiz-list');
+const backToTeacher = document.getElementById('back-to-teacher');
+const backToTeacherFromStudents = document.getElementById('back-to-teacher-from-students');
+const studentListContainer = document.getElementById('student-list-container');
+const studentCsvInput = document.getElementById('student-csv-input');
+const uploadCsvBtn = document.getElementById('upload-csv-btn');
+const studentClassFilter = document.getElementById('student-class-filter');
+const studentSearchInput = document.getElementById('student-search-input');
+const bulkActionsBar = document.getElementById('bulk-actions-bar');
+const selectedCountText = document.getElementById('selected-count');
+const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+const selectAllCheckbox = document.getElementById('select-all-students');
+
+let selectedStudentEmails = new Set();
+
+manageStudentsBtn.onclick = () => {
+    selectedStudentEmails.clear();
+    bulkActionsBar.classList.add('hidden');
+    selectAllCheckbox.checked = false;
+    showView('manageStudents');
+    refreshStudentList();
+};
+
+studentClassFilter.onchange = () => refreshStudentList();
+studentSearchInput.oninput = () => refreshStudentList();
+
+selectAllCheckbox.onchange = (e) => {
+    const checkboxes = studentListContainer.querySelectorAll('.student-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = e.target.checked;
+        if (e.target.checked) selectedStudentEmails.add(cb.dataset.email);
+        else selectedStudentEmails.delete(cb.dataset.email);
+    });
+    updateBulkActionsBar();
+};
+
+deleteSelectedBtn.onclick = async () => {
+    const count = selectedStudentEmails.size;
+    if (confirm(`Are you sure you want to delete ${count} selected students?`)) {
+        deleteSelectedBtn.disabled = true;
+        deleteSelectedBtn.innerText = "Deleting...";
+        try {
+            const promises = Array.from(selectedStudentEmails).map(email => deleteDoc(doc(db, "students", email)));
+            await Promise.all(promises);
+            selectedStudentEmails.clear();
+            updateBulkActionsBar();
+            refreshStudentList();
+            selectAllCheckbox.checked = false;
+        } catch (err) {
+            alert("Error deleting students: " + err.message);
+        } finally {
+            deleteSelectedBtn.disabled = false;
+            deleteSelectedBtn.innerHTML = `<ion-icon name="trash"></ion-icon> Delete Selected`;
+        }
+    }
+};
+
+function updateBulkActionsBar() {
+    const count = selectedStudentEmails.size;
+    if (count > 0) {
+        bulkActionsBar.classList.remove('hidden');
+        selectedCountText.innerText = `${count} Students Selected`;
+    } else {
+        bulkActionsBar.classList.add('hidden');
+    }
+}
+
+window.toggleStudentSelection = (email, checked) => {
+    if (checked) selectedStudentEmails.add(email);
+    else selectedStudentEmails.delete(email);
+    updateBulkActionsBar();
+};
+
+backToTeacherFromStudents.onclick = () => showView('teacher');
+
+uploadCsvBtn.onclick = () => studentCsvInput.click();
+
+studentCsvInput.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const text = event.target.result;
+        const lines = text.split('\n');
+        let count = 0;
+
+        for (const line of lines) {
+            const rawParts = line.split(',').map(p => p.trim());
+            let email = "", className = "";
+
+            // Identify email and class
+            const emailIdx = rawParts.findIndex(p => p.includes('@'));
+            
+            if (emailIdx !== -1) {
+                email = rawParts[emailIdx].replace(/"/g, '').trim().toLowerCase();
+                // Everything else is treated as the class (usually just one field after email)
+                className = rawParts.slice(emailIdx + 1).join(', ').replace(/"/g, '').trim();
+                
+                if (email) {
+                    // Extract name from email: adeline_tang_ying_qi@... -> Adeline Tang Ying Qi
+                    const namePart = email.split('@')[0];
+                    const name = namePart.split('_')
+                                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                                        .join(' ');
+
+                    try {
+                        await setDoc(doc(db, "students", email), {
+                            email: email,
+                            name: name,
+                            class: className,
+                            updatedAt: serverTimestamp()
+                        }, { merge: true });
+                        count++;
+                    } catch (err) {
+                        console.error("Error saving student:", email, err);
+                    }
+                }
+            }
+        }
+        alert(`Successfully imported ${count} students!`);
+        refreshStudentList();
+        studentCsvInput.value = "";
+    };
+    reader.readAsText(file);
+};
+
+async function refreshStudentList() {
+    studentListContainer.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400">Loading students...</td></tr>`;
+    try {
+        const snap = await getDocs(collection(db, "students"));
+        studentListContainer.innerHTML = "";
+        
+        const selectedClass = studentClassFilter.value;
+        const searchQuery = studentSearchInput.value.toLowerCase().trim();
+
+        // Update class filter options dynamically
+        const classes = new Set();
+        snap.forEach(d => {
+            const s = d.data();
+            if (s.class) classes.add(s.class);
+        });
+
+        const currentFilterOptions = Array.from(studentClassFilter.options).map(o => o.value);
+        classes.forEach(c => {
+            if (!currentFilterOptions.includes(c)) {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                studentClassFilter.appendChild(opt);
+            }
+        });
+
+        const students = [];
+        snap.forEach(d => {
+            const s = d.data();
+            const matchesClass = selectedClass === "all" || s.class === selectedClass;
+            const matchesSearch = !searchQuery || 
+                                 s.name.toLowerCase().includes(searchQuery) || 
+                                 s.email.toLowerCase().includes(searchQuery);
+
+            if (matchesClass && matchesSearch) {
+                students.push(s);
+            }
+        });
+
+        if (students.length === 0) {
+            studentListContainer.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400 italic">No matching students found.</td></tr>`;
+            return;
+        }
+
+        // Sort by class then name
+        students.sort((a, b) => {
+            if (a.class !== b.class) return a.class.localeCompare(b.class);
+            return a.name.localeCompare(b.name);
+        });
+
+        students.forEach(s => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="p-5 w-12 text-center">
+                    <input type="checkbox" class="student-checkbox w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-email="${s.email}" onchange="toggleStudentSelection('${s.email}', this.checked)">
+                </td>
+                <td class="p-5 font-bold text-gray-800">${s.name}</td>
+                <td class="p-5 text-gray-500 font-mono text-sm">${s.email}</td>
+                <td class="p-5"><span class="bg-indigo-100 text-indigo-700 font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-widest">${s.class}</span></td>
+                <td class="p-5 text-right">
+                    <button class="text-red-400 hover:text-red-600 font-bold" onclick="deleteStudent('${s.email}')"><ion-icon name="close-circle"></ion-icon></button>
+                </td>
+            `;
+            studentListContainer.appendChild(row);
+        });
+    } catch (err) {
+        studentListContainer.innerHTML = `<tr><td colspan="4" class="p-5 text-red-500 font-bold">Error: ${err.message}</td></tr>`;
+    }
+}
+
+window.deleteStudent = async (email) => {
+    if (confirm(`Delete student ${email}?`)) {
+        await deleteDoc(doc(db, "students", email));
+        refreshStudentList();
+    }
+};
+
+const quizTitleInput = document.getElementById('quiz-title-input');
+const quizDescInput = document.getElementById('quiz-desc-input');
+const questionsContainer = document.getElementById('questions-container');
+const addQuestionBtn = document.getElementById('add-question-btn');
+const saveQuizBtn = document.getElementById('save-quiz-btn');
+
+let currentQuizQuestions = [];
+let editingQuizId = null;
+
+async function refreshTeacherDashboard() {
+    console.log("Refreshing Teacher Dashboard...");
+    teacherQuizList.innerHTML = `<div class="p-10 text-gray-400 font-bold">Loading quizzes...</div>`;
+    try {
+        const q = query(collection(db, "quizzes"), where("teacherId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        
+        teacherQuizList.innerHTML = "";
+        if (snap.empty) {
+            teacherQuizList.innerHTML = `<div class="p-10 text-gray-400 font-medium">No quizzes created yet. Start by clicking "Create New Quiz".</div>`;
+            return;
+        }
+
+        snap.forEach(doc => {
+            const quiz = doc.data();
+            const card = document.createElement('div');
+            card.className = "bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-all flex flex-col justify-between";
+            card.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-xl font-black tracking-tight leading-tight">${quiz.title}</h3>
+                        <div class="bg-indigo-50 text-indigo-700 font-mono font-bold text-xs px-2 py-1 rounded border border-indigo-100 uppercase tracking-widest">${quiz.quizCode || 'NO CODE'}</div>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-6 italic line-clamp-2">${quiz.description || "No description."}</p>
+                    <div class="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-1 rounded inline-block uppercase mb-6 tracking-widest">${quiz.questions.length} Questions</div>
+                </div>
+                <div class="flex gap-2">
+                    <button class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center" title="Edit Quiz" onclick="editQuiz('${doc.id}')">
+                        <ion-icon name="create-outline"></ion-icon>
+                    </button>
+                    <button class="flex-grow bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2" onclick="viewResults('${doc.id}')">
+                        <ion-icon name="stats-chart"></ion-icon> Results
+                    </button>
+                    <button class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center" onclick="confirmDeleteQuiz('${doc.id}', '${quiz.title.replace(/'/g, "\\'")}')">
+                        <ion-icon name="trash"></ion-icon>
+                    </button>
+                </div>
+            `;
+            teacherQuizList.appendChild(card);
+        });
+    } catch (error) {
+        console.error("Full Error:", error);
+        if (error.code === 'failed-precondition') {
+            teacherQuizList.innerHTML = `
+                <div class="p-10 text-amber-600 bg-amber-50 rounded-xl border border-amber-200">
+                    <h3 class="font-bold mb-2">Index Required</h3>
+                    <p class="text-sm mb-4">Firebase needs an index to show your quizzes. Check your browser console for a link to fix this automatically.</p>
+                </div>`;
+        } else {
+            teacherQuizList.innerHTML = `<div class="p-10 text-red-500 font-bold">Error loading quizzes: ${error.message}</div>`;
+        }
+    }
+}
+
+addQuizBtn.onclick = () => {
+    editingQuizId = null;
+    showView('quizBuilder');
+    resetQuizBuilder();
+};
+
+window.editQuiz = async (quizId) => {
+    editingQuizId = quizId;
+    const qDoc = await getDoc(doc(db, "quizzes", quizId));
+    if (!qDoc.exists()) return alert("Quiz not found");
+    
+    const quiz = qDoc.data();
+    showView('quizBuilder');
+    
+    quizTitleInput.value = quiz.title;
+    quizDescInput.value = quiz.description || "";
+    questionsContainer.innerHTML = "";
+    currentQuizQuestions = quiz.questions || [];
+
+    currentQuizQuestions.forEach((q, idx) => {
+        renderQuestionBlock(q, idx);
+    });
+};
+
+backToTeacher.onclick = () => showView('teacher');
+
+function resetQuizBuilder() {
+    quizTitleInput.value = "";
+    quizDescInput.value = "";
+    questionsContainer.innerHTML = "";
+    currentQuizQuestions = [];
+    addQuestionToBuilder(); // Add one by default
+}
+
+function addQuestionToBuilder() {
+    const qId = Date.now();
+    const q = { id: qId, text: "", options: ["", "", "", ""], correctAnswer: 0, image: null, explanation: "" };
+    currentQuizQuestions.push(q);
+    renderQuestionBlock(q, currentQuizQuestions.length - 1);
+}
+
+function renderQuestionBlock(q, qIndex) {
+    const qBlock = document.createElement('div');
+    qBlock.className = "bg-gray-50 p-8 rounded-2xl border-2 border-dashed border-gray-200 relative q-block";
+    qBlock.innerHTML = `
+        <div class="flex justify-between items-center mb-6">
+            <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest">Question ${qIndex + 1}</h4>
+            <button class="text-red-400 hover:text-red-500 transition-colors" onclick="removeQuestion(${q.id})">
+                <ion-icon name="trash-outline" size="large"></ion-icon>
+            </button>
+        </div>
+        <div class="space-y-6">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Text (supports $...$ for LaTeX)</label>
+                <textarea class="w-full border p-4 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 q-text" oninput="updateQ(${q.id}, 'text', this.value)" rows="3">${q.text}</textarea>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Image (Optional)</label>
+                ${q.image ? `<div class="mb-2 relative w-32 h-32 border rounded-lg overflow-hidden group">
+                    <img src="${q.image}" class="w-full h-full object-cover">
+                    <button onclick="updateQ(${q.id}, 'image', null); this.parentElement.remove()" class="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
+                </div>` : ''}
+                <input type="file" class="w-full" accept="image/*" onchange="uploadImage(${q.id}, this.files[0])">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                ${[0, 1, 2, 3].map(i => `
+                    <div class="flex items-center gap-3 bg-white p-3 rounded-xl border">
+                        <input type="radio" name="correct-${q.id}" value="${i}" ${i === q.correctAnswer ? 'checked' : ''} onchange="updateQ(${q.id}, 'correctAnswer', ${i})">
+                        <input type="text" class="w-full outline-none font-medium text-sm" placeholder="Option ${String.fromCharCode(65 + i)}" value="${q.options[i]}" oninput="updateOption(${q.id}, ${i}, this.value)">
+                    </div>
+                `).join('')}
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-indigo-500 uppercase tracking-widest mb-2">Solution Explanation (Optional)</label>
+                <textarea class="w-full border p-4 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 italic" placeholder="Explain why the answer is correct..." oninput="updateQ(${q.id}, 'explanation', this.value)" rows="2">${q.explanation || ""}</textarea>
+            </div>
+        </div>
+    `;
+    questionsContainer.appendChild(qBlock);
+}
+
+window.removeQuestion = (id) => {
+    currentQuizQuestions = currentQuizQuestions.filter(q => q.id !== id);
+    const blocks = questionsContainer.querySelectorAll('.q-block');
+    questionsContainer.removeChild(blocks[Array.from(blocks).findIndex(b => b.innerHTML.includes(id))]);
+};
+
+window.updateQ = (id, key, val) => {
+    const q = currentQuizQuestions.find(q => q.id === id);
+    if (q) q[key] = val;
+};
+
+window.updateOption = (id, optIdx, val) => {
+    const q = currentQuizQuestions.find(q => q.id === id);
+    if (q) q.options[optIdx] = val;
+};
+
+window.uploadImage = async (id, file) => {
+    if (!file) return;
+    const fileRef = ref(storage, `quiz-images/${currentUser.uid}/${id}-${file.name}`);
+    const snapshot = await uploadBytes(fileRef, file);
+    const url = await getDownloadURL(snapshot.ref);
+    updateQ(id, 'image', url);
+};
+
+addQuestionBtn.onclick = addQuestionToBuilder;
+
+saveQuizBtn.onclick = async () => {
+    const title = quizTitleInput.value;
+    if (!title) return alert("Please enter a title");
+    
+    saveQuizBtn.disabled = true;
+    saveQuizBtn.innerText = "Saving...";
+
+    try {
+        if (editingQuizId) {
+            // Update existing quiz
+            await updateDoc(doc(db, "quizzes", editingQuizId), {
+                title: title,
+                description: quizDescInput.value,
+                questions: currentQuizQuestions,
+                updatedAt: serverTimestamp()
+            });
+            alert("Quiz updated successfully!");
+        } else {
+            // Create new quiz
+            const quizCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+            await addDoc(collection(db, "quizzes"), {
+                title: title,
+                description: quizDescInput.value,
+                teacherId: currentUser.uid,
+                teacherEmail: currentUser.email,
+                quizCode: quizCode,
+                questions: currentQuizQuestions,
+                createdAt: serverTimestamp()
+            });
+            alert("New quiz created!");
+        }
+        showView('teacher');
+        refreshTeacherDashboard();
+    } catch (err) {
+        alert(err.message);
+    } finally {
+        saveQuizBtn.disabled = false;
+        saveQuizBtn.innerHTML = `<ion-icon name="save-outline" size="large"></ion-icon> Save Quiz`;
+        editingQuizId = null;
+    }
+};
+
+// ----------------------------------------------------
+// QUIZ DELETION LOGIC
+// ----------------------------------------------------
+window.confirmDeleteQuiz = async (quizId, quizTitle) => {
+    if (confirm(`Are you sure you want to delete "${quizTitle}"? This will permanently remove the quiz and all associated results.`)) {
+        try {
+            await deleteDoc(doc(db, "quizzes", quizId));
+            
+            // Cleanup attempts for this quiz
+            const attemptsQuery = query(collection(db, "quiz_attempts"), where("quizId", "==", quizId));
+            const attemptsSnap = await getDocs(attemptsQuery);
+            const deletePromises = attemptsSnap.docs.map(d => deleteDoc(doc(db, "quiz_attempts", d.id)));
+            await Promise.all(deletePromises);
+
+            refreshTeacherDashboard();
+        } catch (error) {
+            console.error("Error deleting quiz:", error);
+            alert("Error deleting quiz: " + error.message);
+        }
+    }
+};
+
+// ----------------------------------------------------
+// TEACHER RESULTS LOGIC
+// ----------------------------------------------------
+let currentResultsQuizId = null;
+
+document.getElementById('class-filter').onchange = () => {
+    if (currentResultsQuizId) viewResults(currentResultsQuizId);
+};
+
+window.viewResults = async (quizId) => {
+    currentResultsQuizId = quizId;
+    showView('teacherResults');
+    const resultsTbody = document.getElementById('results-tbody');
+    const resultsTitle = document.getElementById('results-quiz-title');
+    const classFilter = document.getElementById('class-filter');
+    const selectedClass = classFilter.value;
+
+    resultsTbody.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400">Loading results...</td></tr>`;
+
+    const qDocRef = doc(db, "quizzes", quizId);
+    const qSnap = await getDoc(qDocRef);
+    if (qSnap.exists()) {
+        resultsTitle.innerText = `Results for ${qSnap.data().title}`;
+    }
+
+    // Fetch student mappings for classes
+    const studentSnap = await getDocs(collection(db, "students"));
+    const studentMap = {};
+    const classes = new Set();
+    studentSnap.forEach(d => {
+        const s = d.data();
+        studentMap[s.email.toLowerCase()] = s;
+        if (s.class) classes.add(s.class);
+    });
+
+    // Update class filter dropdown if it's the first load or "all"
+    const currentOptions = Array.from(classFilter.options).map(o => o.value);
+    classes.forEach(c => {
+        if (!currentOptions.includes(c)) {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            classFilter.appendChild(opt);
+        }
+    });
+
+    const resQ = query(collection(db, "quiz_attempts"), where("quizId", "==", quizId), orderBy("submittedAt", "desc"));
+    const resSnap = await getDocs(resQ);
+    
+    // Filter results by class if needed
+    let filteredDocs = resSnap.docs;
+    if (selectedClass !== "all") {
+        filteredDocs = resSnap.docs.filter(d => {
+            const email = d.data().studentEmail.toLowerCase();
+            return studentMap[email] && studentMap[email].class === selectedClass;
+        });
+    }
+
+    resultsTbody.innerHTML = "";
+    if (filteredDocs.length === 0) {
+        resultsTbody.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400 italic">No results found ${selectedClass !== "all" ? "for class " + selectedClass : ""}.</td></tr>`;
+    }
+
+    let totalScore = 0;
+    let counts = 0;
+    let passing = 0;
+
+    filteredDocs.forEach(d => {
+        const att = d.data();
+        totalScore += att.score;
+        counts++;
+        if (att.score >= att.totalQuestions / 2) passing++;
+
+        const studentData = studentMap[att.studentEmail.toLowerCase()] || {};
+        const row = document.createElement('tr');
+        row.className = "hover:bg-gray-50 transition-colors";
+        row.innerHTML = `
+            <td class="px-6 py-5 font-bold text-gray-800 text-sm">
+                ${att.studentName}
+                ${studentData.class ? `<span class="ml-2 bg-gray-100 text-gray-500 text-[9px] px-2 py-0.5 rounded uppercase font-black tracking-widest">${studentData.class}</span>` : ''}
+            </td>
+            <td class="px-6 py-5 text-xs text-gray-400 font-mono">${att.studentEmail}</td>
+            <td class="px-6 py-5 font-black text-sm ${att.score >= att.totalQuestions / 2 ? 'text-green-600' : 'text-red-500'}">${att.score} / ${att.totalQuestions}</td>
+            <td class="px-6 py-5 text-[10px] text-gray-400 uppercase font-bold tracking-widest">${att.submittedAt?.toDate().toLocaleDateString()}</td>
+        `;
+        resultsTbody.appendChild(row);
+    });
+
+    document.getElementById('stat-avg-score').innerText = counts === 0 ? "-" : (totalScore / counts).toFixed(1);
+    document.getElementById('stat-takers').innerText = counts;
+    document.getElementById('stat-pass').innerText = passing;
+
+    // ----------------------------------------------------
+    // QUIZ ANALYSIS LOGIC (UPDATED WITH CLASS FILTER)
+    // ----------------------------------------------------
+    const analysisContainer = document.getElementById('quiz-analysis-container');
+    analysisContainer.innerHTML = "";
+
+    const quiz = qSnap.data();
+    quiz.questions.forEach((q, qIdx) => {
+        const countsByOption = [0, 0, 0, 0];
+        filteredDocs.forEach(d => {
+            const studentChoice = d.data().answers[qIdx];
+            if (studentChoice !== undefined && studentChoice !== null) {
+                countsByOption[studentChoice]++;
+            }
+        });
+
+        const questionDiv = document.createElement('div');
+        questionDiv.className = "bg-white p-10 rounded-3xl border shadow-sm";
+        questionDiv.innerHTML = `
+            <div class="mb-8 border-b pb-6">
+                <span class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">Question ${qIdx + 1}</span>
+                <h4 class="text-xl font-bold mt-2 text-gray-800 leading-tight">${q.text}</h4>
+                ${q.image ? `<img src="${q.image}" class="max-w-xs mt-6 rounded-2xl shadow-sm border border-gray-100">` : ''}
+            </div>
+            
+            <div class="space-y-6">
+                ${q.options.map((opt, optIdx) => {
+                    const count = countsByOption[optIdx];
+                    const percentage = counts === 0 ? 0 : Math.round((count / counts) * 100);
+                    const isCorrect = optIdx === q.correctAnswer;
+                    
+                    return `
+                        <div>
+                            <div class="flex justify-between items-center mb-2 px-1">
+                                <span class="text-sm font-bold ${isCorrect ? 'text-green-600' : 'text-gray-500'}">
+                                    <span class="mr-2 font-black">${String.fromCharCode(65 + optIdx)}</span> ${opt} ${isCorrect ? '✓' : ''}
+                                </span>
+                                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${count} students (${percentage}%)</span>
+                            </div>
+                            <div class="w-full bg-gray-50 rounded-full h-4 overflow-hidden border border-gray-100 p-0.5">
+                                <div class="${isCorrect ? 'bg-green-500' : 'bg-indigo-400'} h-full rounded-full transition-all duration-1000 shadow-sm" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+        analysisContainer.appendChild(questionDiv);
+
+        // Render KaTeX for analysis text
+        if (window.renderMathInElement) {
+            renderMathInElement(questionDiv, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ],
+                throwOnError: false
+            });
+        }
+    });
+};
+
+document.getElementById('back-to-teacher-results').onclick = () => {
+    showView('teacher');
+    document.getElementById('class-filter').value = "all"; // Reset filter
+};
+
+// ----------------------------------------------------
+// STUDENT DASHBOARD & QUIZ ROOM LOGIC
+// ----------------------------------------------------
+const studentQuizList = document.getElementById('student-quiz-list');
+const studentAttemptsTable = document.getElementById('student-attempts-table');const joinQuizCodeInput = document.getElementById('join-quiz-code-input');
+const joinQuizBtn = document.getElementById('join-quiz-btn');
+const joinError = document.getElementById('join-error');
+
+joinQuizBtn.onclick = async () => {
+    const code = joinQuizCodeInput.value.trim().toUpperCase();
+    if (!code) return;
+
+    joinError.classList.add('hidden');
+    joinQuizBtn.disabled = true;
+    joinQuizBtn.innerText = "JOINING...";
+
+    try {
+        const q = query(collection(db, "quizzes"), where("quizCode", "==", code));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            joinError.innerText = "Invalid Quiz Code. Please check with your teacher.";
+            joinError.classList.remove('hidden');
+        } else {
+            const docSnap = snap.docs[0];
+            startQuiz(docSnap.id, docSnap.data());
+        }
+    } catch (err) {
+        console.error("Join Error:", err);
+        joinError.innerText = "Error: " + err.message;
+        joinError.classList.remove('hidden');
+    } finally {
+        joinQuizBtn.disabled = false;
+        joinQuizBtn.innerText = "JOIN";
+    }
+};
+async function refreshStudentDashboard() {
+    studentQuizList.innerHTML = `<div class="p-10 text-gray-400 font-bold">Loading...</div>`;
+    const qzSnap = await getDocs(query(collection(db, "quizzes"), orderBy("createdAt", "desc")));
+    
+    studentQuizList.innerHTML = "";
+    qzSnap.forEach(d => {
+        const qz = d.data();
+        const card = document.createElement('div');
+        card.className = "bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-all";
+        card.innerHTML = `
+            <h3 class="text-xl font-black mb-2">${qz.title}</h3>
+            <p class="text-sm text-gray-500 mb-6 italic line-clamp-1">${qz.description || "N/A"}</p>
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95" onclick="startQuiz('${d.id}')">
+                Begin Quiz
+            </button>
+        `;
+        studentQuizList.appendChild(card);
+    });
+
+    const attSnap = await getDocs(query(collection(db, "quiz_attempts"), where("studentId", "==", currentUser.uid), orderBy("submittedAt", "desc")));
+    studentAttemptsTable.innerHTML = "";
+    attSnap.forEach(d => {
+        const att = d.data();
+        const row = document.createElement('tr');
+        row.className = "hover:bg-gray-50 cursor-pointer transition-colors";
+        row.onclick = () => viewAttemptDetail(d.id);
+        row.innerHTML = `
+            <td class="px-6 py-4 font-bold text-sm text-gray-700">${att.quizTitle}</td>
+            <td class="px-6 py-4 font-black ${att.score >= att.totalQuestions / 2 ? 'text-green-600' : 'text-red-500'}">${att.score} / ${att.totalQuestions}</td>
+            <td class="px-6 py-4 text-xs text-gray-400 italic">${att.submittedAt?.toDate().toLocaleDateString()}</td>
+        `;
+        studentAttemptsTable.appendChild(row);
+    });
+}
+
+// ----------------------------------------------------
+// STUDENT ATTEMPT DETAIL LOGIC
+// ----------------------------------------------------
+window.viewAttemptDetail = async (attemptId) => {
+    showView('attemptDetail');
+    const container = document.getElementById('attempt-questions-review');
+    container.innerHTML = `<div class="p-10 text-center text-gray-400">Loading details...</div>`;
+
+    try {
+        const attSnap = await getDoc(doc(db, "quiz_attempts", attemptId));
+        if (!attSnap.exists()) return;
+        const att = attSnap.data();
+
+        const quizSnap = await getDoc(doc(db, "quizzes", att.quizId));
+        if (!quizSnap.exists()) return;
+        const quiz = quizSnap.data();
+
+        document.getElementById('attempt-quiz-title').innerText = quiz.title;
+        document.getElementById('attempt-date').innerText = `Attempted on ${att.submittedAt?.toDate().toLocaleString()}`;
+        document.getElementById('attempt-score-display').innerText = `${att.score} / ${att.totalQuestions}`;
+
+        // Setup retake button
+        const retakeBtn = document.getElementById('retake-quiz-btn');
+        retakeBtn.onclick = () => startQuiz(att.quizId);
+
+        container.innerHTML = "";
+        quiz.questions.forEach((q, qIdx) => {
+            const studentAnswer = att.answers[qIdx];
+            const isCorrect = studentAnswer === q.correctAnswer;
+            
+            const div = document.createElement('div');
+            div.className = `p-8 rounded-3xl border-2 ${isCorrect ? 'border-green-100 bg-green-50/30' : 'border-red-100 bg-red-50/30'}`;
+            div.innerHTML = `
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="text-xs font-black uppercase tracking-widest ${isCorrect ? 'text-green-600' : 'text-red-500'}">Question ${qIdx + 1}</span>
+                    <span class="text-[10px] bg-white px-2 py-1 rounded-full font-bold shadow-sm ${isCorrect ? 'text-green-600' : 'text-red-500'}">
+                        ${isCorrect ? 'Correct' : 'Incorrect'}
+                    </span>
+                </div>
+                <div class="text-xl font-bold mb-6">${q.text}</div>
+                ${q.image ? `<img src="${q.image}" class="max-w-md h-auto rounded-xl shadow-sm mb-6">` : ''}
+                
+                <div class="space-y-3 mb-6">
+                    ${q.options.map((opt, i) => {
+                        let style = "bg-white text-gray-400 border border-gray-100";
+                        let icon = "";
+                        
+                        // Student's choice
+                        if (i === studentAnswer) {
+                            if (isCorrect) {
+                                style = "bg-green-600 text-white border-green-600 shadow-md";
+                                icon = '<ion-icon name="checkmark-circle"></ion-icon>';
+                            } else {
+                                style = "bg-red-500 text-white border-red-500 shadow-md";
+                                icon = '<ion-icon name="close-circle"></ion-icon>';
+                            }
+                        } else if (i === q.correctAnswer) {
+                            // Show correct answer if student got it wrong
+                            style = "bg-green-100 text-green-700 border-green-200 border-dashed border-2";
+                            icon = '<ion-icon name="checkmark-circle-outline"></ion-icon>';
+                        }
+
+                        return `
+                            <div class="p-4 rounded-xl flex items-center justify-between font-bold ${style}">
+                                <span>${opt}</span>
+                                <span class="text-2xl">${icon}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                ${q.explanation ? `
+                    <div class="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
+                        <h5 class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                            <ion-icon name="bulb-outline"></ion-icon> Explanation
+                        </h5>
+                        <p class="text-indigo-900 font-medium">${q.explanation}</p>
+                    </div>
+                ` : ''}
+            `;
+            container.appendChild(div);
+
+            // Re-render KaTeX
+            if (window.renderMathInElement) {
+                renderMathInElement(div, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        });
+
+    } catch (err) {
+        console.error("Error loading attempt detail:", err);
+        container.innerHTML = `<div class="p-10 text-red-500">Error loading details.</div>`;
+    }
+};
+
+document.getElementById('back-to-student-dashboard').onclick = () => showView('student');
+
+// Quiz Room State
+let activeQuiz = null;
+let activeQuizId = null;
+let currentQIdx = 0;
+let studentAnswers = [];
+let feedbackShown = false;
+
+window.startQuiz = async (quizId) => {
+    const snap = await getDoc(doc(db, "quizzes", quizId));
+    if (!snap.exists()) return;
+    
+    activeQuiz = snap.data();
+    activeQuizId = quizId;
+    currentQIdx = 0;
+    studentAnswers = new Array(activeQuiz.questions.length).fill(null);
+    feedbackShown = false;
+    
+    showView('quizRoom');
+    renderQuizQuestion();
+};
+
+function renderQuizQuestion() {
+    const q = activeQuiz.questions[currentQIdx];
+    document.getElementById('quiz-room-subtitle').innerText = `Quiz: ${activeQuiz.title}`;
+    document.getElementById('quiz-room-q-number').innerText = `Question ${currentQIdx + 1} of ${activeQuiz.questions.length}`;
+    
+    const textTarget = document.getElementById('question-text-display');
+    const imageTarget = document.getElementById('question-image-display');
+    const optionsTarget = document.getElementById('options-container');
+    const dotsTarget = document.getElementById('quiz-progress-dots');
+    const nextBtn = document.getElementById('next-question-btn');
+
+    textTarget.innerText = q.text;
+    
+    if (q.image) {
+        imageTarget.innerHTML = `<img src="${q.image}" class="w-full h-auto">`;
+        imageTarget.classList.remove('hidden');
+    } else {
+        imageTarget.classList.add('hidden');
+    }
+
+    optionsTarget.innerHTML = "";
+    q.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.id = `opt-${i}`;
+        btn.className = `w-full text-left p-6 rounded-2xl border-2 transition-all flex items-center gap-4 ${studentAnswers[currentQIdx] === i ? 'border-blue-600 bg-blue-50 text-blue-800 ring-4 ring-blue-50 shadow-sm font-black' : 'border-gray-100 hover:bg-gray-50 text-gray-600 font-medium'}`;
+        btn.innerHTML = `
+            <div class="w-8 h-8 rounded-full border-2 flex-shrink-0 flex items-center justify-center font-bold text-sm ${studentAnswers[currentQIdx] === i ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-200'}">
+                ${String.fromCharCode(65 + i)}
+            </div>
+            <span>${opt}</span>
+        `;
+        btn.onclick = () => {
+            studentAnswers[currentQIdx] = i;
+            renderQuizQuestion();
+        };
+        optionsTarget.appendChild(btn);
+    });
+
+    dotsTarget.innerHTML = activeQuiz.questions.map((_, i) => `<div class="w-2 h-2 rounded-full ${i === currentQIdx ? 'bg-blue-600' : studentAnswers[i] !== null ? 'bg-green-400' : 'bg-gray-200'}"></div>`).join('');
+
+    if (currentQIdx === activeQuiz.questions.length - 1) {
+        nextBtn.innerHTML = `<span>Finish Quiz</span> <ion-icon name="send-outline"></ion-icon>`;
+    } else {
+        nextBtn.innerHTML = `<span>Next</span> <ion-icon name="chevron-forward"></ion-icon>`;
+    }
+
+    // Trigger KaTeX rendering
+    if (window.renderMathInElement) {
+        renderMathInElement(textTarget, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ],
+            throwOnError: false
+        });
+    }
+}
+
+document.getElementById('prev-question-btn').onclick = () => {
+    if (currentQIdx > 0) {
+        currentQIdx--;
+        renderQuizQuestion();
+    }
+};
+
+document.getElementById('next-question-btn').onclick = async () => {
+    if (currentQIdx < activeQuiz.questions.length - 1) {
+        currentQIdx++;
+        renderQuizQuestion();
+    } else {
+        // Submit Quiz
+        if (studentAnswers.includes(null)) return alert("Please answer all questions before finishing.");
+        
+        const nextBtn = document.getElementById('next-question-btn');
+        nextBtn.disabled = true;
+        nextBtn.innerText = "Submitting...";
+
+        let score = 0;
+        activeQuiz.questions.forEach((q, i) => {
+            if (q.correctAnswer === studentAnswers[i]) score++;
+        });
+
+        try {
+            // Get student name from prepopulated student list if available
+            let studentName = currentUser.displayName;
+            const studentDoc = await getDoc(doc(db, "students", currentUser.email.toLowerCase()));
+            if (studentDoc.exists()) {
+                studentName = studentDoc.data().name;
+            }
+
+            await addDoc(collection(db, "quiz_attempts"), {
+                quizId: activeQuizId,
+                quizTitle: activeQuiz.title,
+                studentId: currentUser.uid,
+                studentName: studentName,
+                studentEmail: currentUser.email,
+                answers: studentAnswers,
+                score: score,
+                totalQuestions: activeQuiz.questions.length,
+                submittedAt: serverTimestamp()
+            });
+            showView('student');
+            refreshStudentDashboard();
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            nextBtn.disabled = false;
+        }
+    }
+};
+
+// Removed checkAnswer function as per user request (feedback after submission only)

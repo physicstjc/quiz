@@ -362,6 +362,9 @@ async function refreshTeacherDashboard() {
                     <div class="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-1 rounded inline-block uppercase mb-6 tracking-widest">${quiz.questions.length} Questions</div>
                 </div>
                 <div class="flex gap-2">
+                    <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Preview Quiz" onclick="previewQuiz('${doc.id}')">
+                        <ion-icon name="eye"></ion-icon>
+                    </button>
                     <button class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center" title="Edit Quiz" onclick="editQuiz('${doc.id}')">
                         <ion-icon name="create-outline"></ion-icon>
                     </button>
@@ -898,8 +901,29 @@ let activeQuizId = null;
 let currentQIdx = 0;
 let studentAnswers = [];
 let feedbackShown = false;
+let isPreviewMode = false;
 
-window.startQuiz = async (quizId) => {
+window.startQuiz = async (quizId, quizData = null) => {
+    isPreviewMode = false;
+    if (quizData) {
+        activeQuiz = quizData;
+        activeQuizId = quizId;
+    } else {
+        const snap = await getDoc(doc(db, "quizzes", quizId));
+        if (!snap.exists()) return;
+        activeQuiz = snap.data();
+        activeQuizId = quizId;
+    }
+    
+    currentQIdx = 0;
+    studentAnswers = new Array(activeQuiz.questions.length).fill(null);
+    feedbackShown = false;
+    
+    showView('quizRoom');
+    renderQuizQuestion();
+};
+
+window.previewQuiz = async (quizId) => {
     const snap = await getDoc(doc(db, "quizzes", quizId));
     if (!snap.exists()) return;
     
@@ -908,6 +932,7 @@ window.startQuiz = async (quizId) => {
     currentQIdx = 0;
     studentAnswers = new Array(activeQuiz.questions.length).fill(null);
     feedbackShown = false;
+    isPreviewMode = true;
     
     showView('quizRoom');
     renderQuizQuestion();
@@ -996,6 +1021,13 @@ document.getElementById('next-question-btn').onclick = async () => {
         });
 
         try {
+            if (isPreviewMode) {
+                alert(`Preview complete! Your score would have been ${score} / ${activeQuiz.questions.length}. No results were recorded.`);
+                showView('teacher');
+                refreshTeacherDashboard();
+                return;
+            }
+
             // Get student name from prepopulated student list if available
             let studentName = currentUser.displayName;
             const studentDoc = await getDoc(doc(db, "students", currentUser.email.toLowerCase()));

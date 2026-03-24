@@ -688,7 +688,10 @@ window.viewResults = async (quizId) => {
                 ${displayEmail}
             </td>
             <td class="px-6 py-5 font-black text-sm ${att.score >= att.totalQuestions / 2 ? 'text-green-600' : 'text-red-500'}">${att.score} / ${att.totalQuestions}</td>
-            <td class="px-6 py-5 text-[10px] text-gray-400 uppercase font-bold tracking-widest">${att.submittedAt?.toDate().toLocaleDateString()}</td>
+            <td class="px-6 py-5 text-[10px] text-gray-400 uppercase font-bold tracking-widest">
+                ${att.submittedAt?.toDate().toLocaleDateString()} 
+                <span class="block text-[8px] opacity-70 mt-1 italic font-medium">${att.submittedAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </td>
         `;
         resultsTbody.appendChild(row);
     });
@@ -829,7 +832,10 @@ async function refreshStudentDashboard() {
         row.innerHTML = `
             <td class="px-6 py-4 font-bold text-sm text-gray-700">${att.quizTitle}</td>
             <td class="px-6 py-4 font-black ${att.score >= att.totalQuestions / 2 ? 'text-green-600' : 'text-red-500'}">${att.score} / ${att.totalQuestions}</td>
-            <td class="px-6 py-4 text-xs text-gray-400 italic">${att.submittedAt?.toDate().toLocaleDateString()}</td>
+            <td class="px-6 py-4 text-xs text-gray-400 italic">
+                ${att.submittedAt?.toDate().toLocaleDateString()}
+                <span class="block text-[10px] opacity-70 mt-1">${att.submittedAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </td>
         `;
         studentAttemptsTable.appendChild(row);
     });

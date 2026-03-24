@@ -692,6 +692,11 @@ window.viewResults = async (quizId) => {
                 ${att.submittedAt?.toDate().toLocaleDateString()} 
                 <span class="block text-[8px] opacity-70 mt-1 italic font-medium">${att.submittedAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </td>
+            <td class="px-6 py-5 text-right">
+                <button class="text-gray-300 hover:text-red-500 transition-colors p-2" onclick="deleteAttempt('${d.id}', '${quizId}')">
+                    <ion-icon name="trash-outline"></ion-icon>
+                </button>
+            </td>
         `;
         resultsTbody.appendChild(row);
     });
@@ -765,6 +770,18 @@ window.viewResults = async (quizId) => {
 document.getElementById('back-to-teacher-results').onclick = () => {
     showView('teacher');
     document.getElementById('class-filter').value = "all"; // Reset filter
+};
+
+window.deleteAttempt = async (attemptId, quizId) => {
+    if (confirm("Are you sure you want to delete this specific student response? This cannot be undone.")) {
+        try {
+            await deleteDoc(doc(db, "quiz_attempts", attemptId));
+            viewResults(quizId); // Refresh the view
+        } catch (error) {
+            console.error("Error deleting response:", error);
+            alert("Error deleting response: " + error.message);
+        }
+    }
 };
 
 // ----------------------------------------------------

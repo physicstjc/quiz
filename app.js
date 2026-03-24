@@ -598,10 +598,10 @@ function renderQuestionBlock(q, qIndex) {
                                 <label class="cursor-pointer text-indigo-500 hover:text-indigo-700 bg-white p-2 rounded-lg shadow-sm border border-indigo-50 transition-all flex items-center gap-2 text-[10px] font-bold">
                                     <ion-icon name="image-outline"></ion-icon>
                                     ${q.optionImages[i] ? 'Change Image' : 'Add Image'}
-                                    <input type="file" class="hidden" accept="image/*" onchange="uploadImage('${q.id}', this.files[0], 'optionImage', ${i})">
+                                    <input type="file" class="hidden" accept="image/*" onchange="window.uploadImage('${q.id}', this.files[0], 'optionImage', ${i})">
                                 </label>
                                 ${q.optionImages[i] ? `
-                                    <button onclick="updateOptionImage('${q.id}', ${i}, null); this.closest('.bg-indigo-50/30').querySelector('.opt-img-container').remove();" class="text-red-400 hover:text-red-600 p-2">
+                                    <button onclick="window.updateOptionImage('${q.id}', ${i}, null); this.closest('.bg-indigo-50/30').querySelector('.opt-img-container').innerHTML = '';" class="text-red-400 hover:text-red-600 p-2">
                                         <ion-icon name="close-circle-outline"></ion-icon>
                                     </button>
                                 ` : ''}

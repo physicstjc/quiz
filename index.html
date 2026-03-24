@@ -270,23 +270,25 @@
                         <h2 id="results-quiz-title" class="text-4xl font-black tracking-tighter mb-2">Quiz Results</h2>
                         <p class="text-gray-500 font-medium italic">Performance overview and item analysis.</p>
                     </div>
-                    <div class="flex flex-col gap-2">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Privacy</label>
-                        <button id="toggle-names-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
-                            <ion-icon name="eye-outline"></ion-icon> Show Names
-                        </button>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Settings</label>
-                        <button id="toggle-retakes-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
-                            <ion-icon name="refresh-outline" id="retake-icon"></ion-icon> <span id="retake-text">Standard (One Try)</span>
-                        </button>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Filter by Class</label>
-                        <select id="class-filter" class="bg-white border-2 border-gray-100 p-4 rounded-xl font-bold text-gray-700 min-w-[200px] outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer">
-                            <option value="all">All Classes</option>
-                        </select>
+                    <div class="flex flex-wrap items-end gap-4">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Privacy</label>
+                            <button id="toggle-names-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 whitespace-nowrap">
+                                <ion-icon name="eye-outline"></ion-icon> Show Names
+                            </button>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Settings</label>
+                            <button id="toggle-retakes-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 whitespace-nowrap">
+                                <ion-icon name="refresh-outline" id="retake-icon"></ion-icon> <span id="retake-text">Standard (One Try)</span>
+                            </button>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Filter by Class</label>
+                            <select id="class-filter" class="bg-white border-2 border-gray-100 p-4 rounded-xl font-bold text-gray-700 min-w-[150px] md:min-w-[200px] outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer">
+                                <option value="all">All Classes</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 

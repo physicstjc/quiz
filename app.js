@@ -143,12 +143,30 @@ logoutBtn.onclick = () => {
 // ----------------------------------------------------
 // TEACHER DASHBOARD LOGIC
 // ----------------------------------------------------
+let qrcodeInstance = null;
+
 function showShareModal(code) {
     const baseUrl = window.location.origin + window.location.pathname;
     const shareUrl = `${baseUrl}?code=${code}`;
     
     document.getElementById('share-url-input').value = shareUrl;
     document.getElementById('share-code-display').innerText = code || '------';
+    
+    // Generate QR Code
+    const qrContainer = document.getElementById('share-qrcode');
+    qrContainer.innerHTML = ""; // Clear existing
+    
+    if (code) {
+        new QRCode(qrContainer, {
+            text: shareUrl,
+            width: 140,
+            height: 140,
+            colorDark: "#1d4ed8", // blue-700
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+
     document.getElementById('modal-share-quiz').classList.remove('hidden');
 }
 

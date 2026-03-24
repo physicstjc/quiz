@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <!-- QRCode.js for invitation QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans">
     
@@ -402,6 +404,12 @@
             </div>
             
             <div class="p-8 space-y-6">
+                <!-- QR Code Section -->
+                <div class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                    <div id="share-qrcode" class="bg-white p-2 rounded-lg shadow-sm mb-2"></div>
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">Scan to join</p>
+                </div>
+
                 <!-- URL Section -->
                 <div>
                     <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Platform URL</label>

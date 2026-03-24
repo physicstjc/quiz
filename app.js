@@ -1077,7 +1077,10 @@ document.getElementById('next-question-btn').onclick = async () => {
                 studentName = studentDoc.data().name;
             }
 
-            await addDoc(collection(db, "quiz_attempts"), {
+            // Prevent duplicate attempts by using a unique document ID (email + quizId)
+            // This ensures only one attempt per student per quiz is recorded
+            const attemptId = `${currentUser.email.toLowerCase()}_${activeQuizId}`;
+            await setDoc(doc(db, "quiz_attempts", attemptId), {
                 quizId: activeQuizId,
                 quizTitle: activeQuiz.title,
                 studentId: currentUser.uid,
@@ -1088,6 +1091,7 @@ document.getElementById('next-question-btn').onclick = async () => {
                 totalQuestions: activeQuiz.questions.length,
                 submittedAt: serverTimestamp()
             });
+
             showView('student');
             refreshStudentDashboard();
         } catch (err) {

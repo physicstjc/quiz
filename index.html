@@ -19,28 +19,28 @@
     
     <div id="app" class="min-h-screen flex flex-col">
         <!-- Navigation bar -->
-        <nav class="hidden bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center" id="navbar">
+        <nav class="hidden bg-white shadow-sm border-b px-4 md:px-6 py-4 flex justify-between items-center" id="navbar">
             <div class="flex items-center gap-2">
-                <span class="text-xl font-bold text-blue-600">PhysicsLens Quiz</span>
-                <span id="user-role-badge" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-full uppercase font-bold tracking-widest invisible"></span>
+                <span class="text-lg md:text-xl font-bold text-blue-600 leading-tight">PhysicsLens Quiz</span>
+                <span id="user-role-badge" class="hidden sm:inline-block text-[8px] md:text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-full uppercase font-bold tracking-widest invisible"></span>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="text-right flex flex-col items-end">
-                    <span id="nav-user-name" class="text-sm font-semibold"></span>
-                    <span id="nav-user-email" class="text-xs text-gray-500"></span>
+            <div class="flex items-center gap-3 md:gap-4">
+                <div class="text-right flex flex-col items-end max-w-[120px] md:max-w-none">
+                    <span id="nav-user-name" class="text-xs md:text-sm font-semibold truncate w-full"></span>
+                    <span id="nav-user-email" class="text-[10px] md:text-xs text-gray-500 truncate w-full"></span>
                 </div>
-                <button id="logout-btn" class="p-2 text-gray-500 hover:text-red-600 transition-colors">
-                    <ion-icon name="log-out-outline" size="large"></ion-icon>
+                <button id="logout-btn" class="p-1 md:p-2 text-gray-500 hover:text-red-600 transition-colors">
+                    <ion-icon name="log-out-outline" class="text-2xl md:text-3xl"></ion-icon>
                 </button>
             </div>
         </nav>
 
         <!-- Main content area -->
-        <main class="flex-grow flex items-center justify-center p-6" id="main-content">
+        <main class="flex-grow flex items-center justify-center p-4 md:p-6" id="main-content">
             <!-- Login View -->
-            <div id="view-login" class="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl border text-center">
-                <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Welcome</h1>
-                <p class="text-gray-500 mb-8">Sign in with your MOE Google account to proceed.</p>
+            <div id="view-login" class="max-w-md w-full bg-white p-6 md:p-10 rounded-2xl shadow-xl border text-center">
+                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">Welcome</h1>
+                <p class="text-sm md:text-base text-gray-500 mb-8">Sign in with your MOE Google account to proceed.</p>
                 
                 <button id="login-google-btn" class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-6 rounded-xl transition-all shadow-sm">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="20">
@@ -57,48 +57,48 @@
 
             <!-- Student Dashboard View -->
             <div id="view-student" class="hidden w-full max-w-5xl">
-                <div class="mb-10">
-                    <h2 class="text-3xl font-black mb-2 tracking-tight">Student Dashboard</h2>
-                    <p class="text-gray-500">Available quizzes and your progress.</p>
+                <div class="mb-6 md:mb-10">
+                    <h2 class="text-2xl md:text-3xl font-black mb-1 md:mb-2 tracking-tight">Student Dashboard</h2>
+                    <p class="text-xs md:text-sm text-gray-500">Available quizzes and your progress.</p>
                 </div>
                 
-                <section class="mb-12">
-                    <h3 class="text-lg font-bold uppercase tracking-widest text-blue-600 mb-6 flex items-center gap-2">
+                <section class="mb-8 md:mb-12">
+                    <h3 class="text-sm md:text-lg font-bold uppercase tracking-widest text-blue-600 mb-4 md:mb-6 flex items-center gap-2">
                         <ion-icon name="book-outline"></ion-icon> Join a Quiz
                     </h3>
                     
                     <!-- Join Quiz by Code -->
-                    <div class="bg-blue-600 p-8 rounded-3xl shadow-xl border border-blue-500 text-white mb-8">
-                        <h4 class="text-xl font-black mb-4 tracking-tight">Have a Quiz Code?</h4>
-                        <div class="flex gap-4">
-                            <input type="text" id="join-quiz-code-input" placeholder="ABC123" class="flex-grow p-4 rounded-xl text-gray-900 font-mono font-bold uppercase tracking-widest outline-none focus:ring-4 focus:ring-blue-300 transition-all">
-                            <button id="join-quiz-btn" class="bg-white text-blue-600 font-black px-10 py-4 rounded-xl hover:bg-gray-100 transition-all active:scale-95 shadow-lg">JOIN</button>
+                    <div class="bg-blue-600 p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-xl border border-blue-500 text-white mb-8">
+                        <h4 class="text-lg md:text-xl font-black mb-4 tracking-tight">Have a Quiz Code?</h4>
+                        <div class="flex flex-col sm:flex-row gap-3 md:gap-4">
+                            <input type="text" id="join-quiz-code-input" placeholder="ABC123" class="flex-grow p-3 md:p-4 rounded-xl text-gray-900 font-mono font-bold uppercase tracking-widest outline-none focus:ring-4 focus:ring-blue-300 transition-all text-center sm:text-left">
+                            <button id="join-quiz-btn" class="bg-white text-blue-600 font-black px-8 md:px-10 py-3 md:py-4 rounded-xl hover:bg-gray-100 transition-all active:scale-95 shadow-lg">JOIN</button>
                         </div>
-                        <p id="join-error" class="hidden mt-4 text-white bg-red-500/30 p-3 rounded-lg text-sm font-bold border border-red-500/50"></p>
+                        <p id="join-error" class="hidden mt-4 text-white bg-red-500/30 p-3 rounded-lg text-xs md:text-sm font-bold border border-red-500/50"></p>
                     </div>
 
-                    <h3 class="text-lg font-bold uppercase tracking-widest text-blue-600 mb-6 flex items-center gap-2">
+                    <h3 class="text-sm md:text-lg font-bold uppercase tracking-widest text-blue-600 mb-4 md:mb-6 flex items-center gap-2">
                         <ion-icon name="list-outline"></ion-icon> Available Quizzes
                     </h3>
-                    <div id="student-quiz-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div id="student-quiz-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                         <!-- Quizzes populated by JS -->
                     </div>
                 </section>
 
                 <section>
-                    <h3 class="text-lg font-bold uppercase tracking-widest text-green-600 mb-6 flex items-center gap-2">
+                    <h3 class="text-sm md:text-lg font-bold uppercase tracking-widest text-green-600 mb-4 md:mb-6 flex items-center gap-2">
                         <ion-icon name="time-outline"></ion-icon> Past Attempts
                     </h3>
-                    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <table class="w-full text-left">
-                            <thead class="bg-gray-50 text-xs text-gray-400 font-bold uppercase border-b">
+                    <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border overflow-x-auto">
+                        <table class="w-full text-left min-w-[300px]">
+                            <thead class="bg-gray-50 text-[10px] md:text-xs text-gray-400 font-bold uppercase border-b">
                                 <tr>
-                                    <th class="px-6 py-4">Quiz Title</th>
-                                    <th class="px-6 py-4">Score</th>
-                                    <th class="px-6 py-4">Date</th>
+                                    <th class="px-4 md:px-6 py-3 md:py-4">Quiz Title</th>
+                                    <th class="px-4 md:px-6 py-3 md:py-4">Score</th>
+                                    <th class="px-4 md:px-6 py-3 md:py-4">Date</th>
                                 </tr>
                             </thead>
-                            <tbody id="student-attempts-table" class="divide-y divide-gray-100">
+                            <tbody id="student-attempts-table" class="divide-y divide-gray-100 italic">
                                 <!-- Attempts populated by JS -->
                             </tbody>
                         </table>
@@ -164,8 +164,13 @@
             </div>
 
             <!-- Actual Quiz Room View -->
-            <div id="view-quiz-room" class="hidden w-full max-w-2xl">
-                <div class="mb-10 flex justify-between items-center bg-white p-6 rounded-2xl border shadow-sm">
+            <div id="view-quiz-room" class="hidden w-full max-w-2xl px-4 sm:px-0 relative">
+                <!-- Exit Preview X Button -->
+                <button id="exit-preview-btn" class="hidden absolute -top-2 -right-2 z-50 bg-white hover:bg-red-50 text-red-500 w-10 h-10 rounded-full shadow-lg border border-red-100 flex items-center justify-center transition-all hover:scale-110 active:scale-95">
+                    <ion-icon name="close" class="text-2xl font-black"></ion-icon>
+                </button>
+
+                <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border shadow-sm gap-4">
                     <div>
                         <p id="quiz-room-subtitle" class="text-[10px] uppercase font-bold tracking-[0.2em] text-blue-600 mb-1"></p>
                         <h2 id="quiz-room-q-number" class="text-xl font-black tracking-tight"></h2>
@@ -174,8 +179,10 @@
                 </div>
 
                 <div class="bg-white rounded-3xl shadow-xl border p-10 mb-8" id="question-card">
-                    <div id="question-text-display" class="text-2xl font-medium mb-10 transition-opacity"></div>
-                    <div id="question-image-display" class="hidden mb-10 rounded-2xl overflow-hidden shadow-inner"></div>
+                    <div id="question-content-container" class="mb-10 transition-opacity">
+                        <div id="question-text-display" class="text-lg font-bold text-gray-800"></div>
+                        <div id="question-image-display" class="hidden mt-6 rounded-2xl overflow-hidden shadow-inner max-w-xl mx-auto border-2 border-gray-50"></div>
+                    </div>
                     
                     <div id="options-container" class="grid grid-cols-1 gap-4">
                         <!-- Options generated dynamically -->
@@ -204,53 +211,53 @@
             </div>
 
             <!-- Manage Students View -->
-            <div id="view-manage-students" class="hidden w-full max-w-4xl bg-white rounded-3xl shadow-xl border p-12">
-                <div class="flex items-center gap-4 mb-10 text-blue-600 hover:text-blue-700 cursor-pointer" id="back-to-teacher-from-students">
+            <div id="view-manage-students" class="hidden w-full max-w-4xl bg-white rounded-2xl md:rounded-3xl shadow-xl border p-6 md:p-12">
+                <div class="flex items-center gap-4 mb-6 md:mb-10 text-blue-600 hover:text-blue-700 cursor-pointer" id="back-to-teacher-from-students">
                     <ion-icon name="arrow-back-outline" size="large"></ion-icon>
                     <span class="font-bold">Back to Dashboard</span>
                 </div>
                 
-                <h2 class="text-3xl font-black mb-1 tracking-tight">Manage Students</h2>
-                <p class="text-gray-500 mb-8 font-medium">Upload a CSV file or filter the existing student list.</p>
+                <h2 class="text-2xl md:text-3xl font-black mb-1 tracking-tight">Manage Students</h2>
+                <p class="text-xs md:text-sm text-gray-500 mb-6 md:mb-8 font-medium">Upload a CSV file or filter the existing student list.</p>
 
-                <div class="flex gap-4 mb-10">
+                <div class="flex flex-col sm:flex-row gap-4 mb-6 md:mb-10">
                     <div class="flex-1">
                         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-1">Filter by Class</label>
-                        <select id="student-class-filter" class="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer">
+                        <select id="student-class-filter" class="w-full bg-gray-50 border-2 border-gray-100 p-3 md:p-4 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer text-sm md:text-base">
                             <option value="all">All Classes</option>
                         </select>
                     </div>
                     <div class="flex-1">
                         <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-1">Search Name/Email</label>
-                        <input type="text" id="student-search-input" placeholder="Search..." class="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                        <input type="text" id="student-search-input" placeholder="Search..." class="w-full bg-gray-50 border-2 border-gray-100 p-3 md:p-4 rounded-xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all text-sm md:text-base">
                     </div>
                 </div>
 
-                <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-12 rounded-2xl mb-10 flex flex-col items-center">
-                    <ion-icon name="cloud-upload-outline" class="text-6xl text-blue-400 mb-4"></ion-icon>
-                    <p class="text-sm font-bold text-blue-800 mb-2 uppercase tracking-widest text-center italic">CSV Upload (email, class)</p>
+                <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-6 md:p-12 rounded-2xl mb-6 md:mb-10 flex flex-col items-center text-center">
+                    <ion-icon name="cloud-upload-outline" class="text-4xl md:text-6xl text-blue-400 mb-4"></ion-icon>
+                    <p class="text-xs md:text-sm font-bold text-blue-800 mb-2 uppercase tracking-widest italic">CSV Upload (email, class)</p>
                     <input type="file" id="student-csv-input" accept=".csv" class="hidden">
-                    <button id="upload-csv-btn" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-all shadow-lg active:scale-95">Select CSV File</button>
-                    <p class="text-[10px] text-blue-400 mt-4 uppercase font-black tracking-widest">Example format: abe_see_dee_yi@students.edu.sg, 4E1</p>
+                    <button id="upload-csv-btn" class="bg-blue-600 text-white px-6 md:px-8 py-3 rounded-xl font-bold hover:bg-black transition-all shadow-lg active:scale-95 text-sm md:text-base">Select CSV File</button>
+                    <p class="text-[9px] md:text-[10px] text-blue-400 mt-4 uppercase font-black tracking-widest">Example format: abe_see_dee_yi@students.edu.sg, 4E1</p>
                 </div>
 
-                <div class="overflow-hidden border rounded-2xl bg-white shadow-sm">
+                <div class="overflow-x-auto border rounded-2xl bg-white shadow-sm">
                     <div id="bulk-actions-bar" class="hidden bg-red-50 p-4 border-b flex justify-between items-center animate-in fade-in duration-300">
-                        <span id="selected-count" class="text-sm font-black text-red-700 uppercase tracking-widest">0 Students Selected</span>
-                        <button id="delete-selected-btn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold text-sm transition-all shadow-md active:scale-95 flex items-center gap-2">
+                        <span id="selected-count" class="text-[10px] md:text-sm font-black text-red-700 uppercase tracking-widest">0 Students Selected</span>
+                        <button id="delete-selected-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm transition-all shadow-md active:scale-95 flex items-center gap-2">
                             <ion-icon name="trash"></ion-icon> Delete Selected
                         </button>
                     </div>
-                    <table class="w-full text-left">
+                    <table class="w-full text-left min-w-[500px]">
                         <thead class="bg-gray-50 border-b">
                             <tr>
-                                <th class="p-5 w-12 text-center">
+                                <th class="p-3 md:p-5 w-10 md:w-12 text-center">
                                     <input type="checkbox" id="select-all-students" class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                 </th>
-                                <th class="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Name</th>
-                                <th class="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Email</th>
-                                <th class="p-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Class</th>
-                                <th class="p-5"></th>
+                                <th class="p-3 md:p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-xs">Name</th>
+                                <th class="p-3 md:p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-xs">Email</th>
+                                <th class="p-3 md:p-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-xs">Class</th>
+                                <th class="p-3 md:p-5"></th>
                             </tr>
                         </thead>
                         <tbody id="student-list-container" class="divide-y divide-gray-100 italic">
@@ -261,73 +268,73 @@
             </div>
 
             <!-- Teacher Results View -->
-            <div id="view-teacher-results" class="hidden w-full max-w-4xl">
-                <div class="flex items-center gap-4 mb-10 text-gray-600 hover:text-gray-900 cursor-pointer" id="back-to-teacher-results">
+            <div id="view-teacher-results" class="hidden w-full max-w-5xl">
+                <div class="flex items-center gap-4 mb-6 md:mb-10 text-gray-600 hover:text-gray-900 cursor-pointer" id="back-to-teacher-results">
                     <ion-icon name="arrow-back-outline" size="large"></ion-icon>
                     <span class="font-bold">Back to Dashboard</span>
                 </div>
                 
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 md:mb-12">
                     <div>
-                        <h2 id="results-quiz-title" class="text-4xl font-black tracking-tighter mb-2">Quiz Results</h2>
-                        <p class="text-gray-500 font-medium italic">Performance overview and item analysis.</p>
+                        <h2 id="results-quiz-title" class="text-2xl md:text-4xl font-black tracking-tighter mb-2">Quiz Results</h2>
+                        <p class="text-xs md:text-sm text-gray-500 font-medium italic">Performance overview and item analysis.</p>
                     </div>
-                    <div class="flex flex-wrap items-end gap-4">
-                        <div class="flex flex-col gap-2">
+                    <div class="flex flex-wrap items-end gap-3 md:gap-4 w-full lg:w-auto">
+                        <div class="flex flex-col gap-2 flex-grow sm:flex-grow-0">
                             <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Privacy</label>
-                            <button id="toggle-names-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 whitespace-nowrap">
-                                <ion-icon name="eye-outline"></ion-icon> Show Names
+                            <button id="toggle-names-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 md:px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 text-xs md:text-sm whitespace-nowrap">
+                                <ion-icon name="eye-outline"></ion-icon> <span id="toggle-names-text">Show Names</span>
                             </button>
                         </div>
-                        <div class="flex flex-col gap-2">
+                        <div class="flex flex-col gap-2 flex-grow sm:flex-grow-0">
                             <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Settings</label>
-                            <button id="toggle-retakes-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 whitespace-nowrap">
+                            <button id="toggle-retakes-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 md:px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 text-xs md:text-sm whitespace-nowrap">
                                 <ion-icon name="refresh-outline" id="retake-icon"></ion-icon> <span id="retake-text">Standard (One Try)</span>
                             </button>
                         </div>
-                        <div class="flex flex-col gap-2">
+                        <div class="flex flex-col gap-2 flex-grow sm:flex-grow-0">
                             <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Filter by Class</label>
-                            <select id="class-filter" class="bg-white border-2 border-gray-100 p-4 rounded-xl font-bold text-gray-700 min-w-[150px] md:min-w-[200px] outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer">
+                            <select id="class-filter" class="w-full bg-white border-2 border-gray-100 p-2.5 rounded-xl font-bold text-gray-700 min-w-[120px] md:min-w-[180px] outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer text-xs md:text-sm">
                                 <option value="all">All Classes</option>
                             </select>
                         </div>
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-3 gap-6 mb-12">
-                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
+                    <div class="bg-white p-5 md:p-6 rounded-2xl border shadow-sm">
                         <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Avg Score</p>
-                        <p id="stat-avg-score" class="text-3xl font-black text-blue-600">-</p>
+                        <p id="stat-avg-score" class="text-2xl md:text-3xl font-black text-blue-600">-</p>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                    <div class="bg-white p-5 md:p-6 rounded-2xl border shadow-sm">
                         <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Takers</p>
-                        <p id="stat-takers" class="text-3xl font-black text-purple-600">-</p>
+                        <p id="stat-takers" class="text-2xl md:text-3xl font-black text-purple-600">-</p>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                    <div class="bg-white p-5 md:p-6 rounded-2xl border shadow-sm">
                         <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Passing</p>
-                        <p id="stat-pass" class="text-3xl font-black text-green-600">-</p>
+                        <p id="stat-pass" class="text-2xl md:text-3xl font-black text-green-600">-</p>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
                     <div id="toggle-table-btn" class="bg-gray-50 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition-colors border-b">
-                        <span class="text-xs font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <span class="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                             <ion-icon name="list-outline"></ion-icon> Student Responses
                         </span>
                         <ion-icon name="chevron-down-outline" id="table-chevron" class="text-gray-400 transition-transform duration-300"></ion-icon>
                     </div>
-                    <div id="results-table-container" class="hidden animate-in slide-in-from-top-2 duration-300">
-                        <table class="w-full text-left">
-                            <thead class="bg-gray-50 text-xs text-gray-400 font-bold uppercase border-b">
+                    <div id="results-table-container" class="hidden animate-in slide-in-from-top-2 duration-300 overflow-x-auto">
+                        <table class="w-full text-left min-w-[500px]">
+                            <thead class="bg-gray-50 text-[10px] md:text-xs text-gray-400 font-bold uppercase border-b">
                                 <tr>
-                                    <th class="px-6 py-4">Student Name</th>
-                                    <th class="px-6 py-4">Email</th>
-                                    <th class="px-6 py-4">Score</th>
-                                    <th class="px-6 py-4">Date</th>
-                                    <th class="px-6 py-4"></th>
+                                    <th class="px-4 md:px-6 py-4">Student Name</th>
+                                    <th class="px-4 md:px-6 py-4">Email</th>
+                                    <th class="px-4 md:px-6 py-4">Score</th>
+                                    <th class="px-4 md:px-6 py-4">Date</th>
+                                    <th class="px-4 md:px-6 py-4"></th>
                                 </tr>
                             </thead>
-                            <tbody id="results-tbody" class="divide-y divide-gray-100">
+                            <tbody id="results-tbody" class="divide-y divide-gray-100 italic">
                                 <!-- Rows -->
                             </tbody>
                         </table>
@@ -335,38 +342,38 @@
                 </div>
 
                 <!-- Quiz Analysis Section -->
-                <div class="mt-16 mb-10">
-                    <h3 class="text-2xl font-black mb-2 tracking-tight">Question Analysis</h3>
-                    <p class="text-gray-500 italic">See exactly which options students are choosing for each question.</p>
+                <div class="mt-12 md:mt-16 mb-8 md:mb-10">
+                    <h3 class="text-xl md:text-2xl font-black mb-2 tracking-tight">Question Analysis</h3>
+                    <p class="text-xs md:text-sm text-gray-500 italic font-medium">See exactly which options students are choosing for each question.</p>
                 </div>
-                <div id="quiz-analysis-container" class="space-y-10 mb-20">
+                <div id="quiz-analysis-container" class="space-y-8 md:space-y-10 mb-20 md:mb-32">
                     <!-- Questions with bars showing distribution -->
                 </div>
             </div>
 
             <!-- Student Attempt Detail View -->
             <div id="view-attempt-detail" class="hidden w-full max-w-3xl">
-                <div class="flex items-center gap-4 mb-10 text-gray-600 hover:text-gray-900 cursor-pointer" id="back-to-student-dashboard">
+                <div class="flex items-center gap-4 mb-6 md:mb-10 text-gray-600 hover:text-gray-900 cursor-pointer" id="back-to-student-dashboard">
                     <ion-icon name="arrow-back-outline" size="large"></ion-icon>
                     <span class="font-bold">Back to Dashboard</span>
                 </div>
                 
-                <div class="bg-white rounded-3xl shadow-xl border p-10 mb-8">
-                    <h2 id="attempt-quiz-title" class="text-3xl font-black mb-2 tracking-tight"></h2>
-                    <p id="attempt-date" class="text-gray-400 text-sm mb-8 font-medium"></p>
+                <div class="bg-white rounded-2xl md:rounded-3xl shadow-xl border p-6 md:p-10 mb-8">
+                    <h2 id="attempt-quiz-title" class="text-2xl md:text-3xl font-black mb-2 tracking-tight"></h2>
+                    <p id="attempt-date" class="text-gray-400 text-xs md:text-sm mb-6 md:mb-8 font-medium"></p>
                     
-                    <div class="inline-flex items-center gap-4 bg-gray-50 px-6 py-4 rounded-2xl border mb-10">
-                        <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Final Score</span>
-                        <span id="attempt-score-display" class="text-3xl font-black text-blue-600"></span>
+                    <div class="inline-flex items-center gap-4 bg-gray-50 px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl border mb-6 md:mb-10 w-full sm:w-auto">
+                        <span class="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Final Score</span>
+                        <span id="attempt-score-display" class="text-2xl md:text-3xl font-black text-blue-600"></span>
                     </div>
 
-                    <div class="mb-10 flex gap-4">
-                        <button id="retake-quiz-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-black py-3 px-8 rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2">
+                    <div class="mb-8 md:mb-10 flex gap-4">
+                        <button id="retake-quiz-btn" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-black py-3 px-6 md:px-8 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 text-sm md:text-base">
                             <ion-icon name="refresh-outline"></ion-icon> Retake Quiz
                         </button>
                     </div>
 
-                    <div id="attempt-questions-review" class="space-y-12">
+                    <div id="attempt-questions-review" class="space-y-8 md:space-y-12">
                         <!-- Questions with student answers and corrections -->
                     </div>
                 </div>
@@ -391,31 +398,34 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <script type="module" src="app.js"></script>
+    <!-- Quill.js for free, no-API rich text editing -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
     <!-- Share Quiz Modal (Teacher) -->
-    <div id="modal-share-quiz" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl border overflow-hidden animate-in zoom-in duration-300">
-            <div class="bg-blue-600 p-8 text-white text-center">
-                <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <ion-icon name="share-social-outline" class="text-4xl"></ion-icon>
+    <div id="modal-share-quiz" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-2xl md:rounded-3xl shadow-2xl border overflow-hidden animate-in zoom-in duration-300">
+            <div class="bg-blue-600 p-6 md:p-8 text-white text-center">
+                <div class="w-16 h-16 md:w-20 md:h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                    <ion-icon name="share-social-outline" class="text-3xl md:text-4xl"></ion-icon>
                 </div>
-                <h3 class="text-2xl font-black tracking-tight mb-2">Invite Students</h3>
-                <p class="text-blue-100 font-medium italic">Share the link and code below.</p>
+                <h3 class="text-xl md:text-2xl font-black tracking-tight mb-1 md:mb-2">Invite Students</h3>
+                <p class="text-xs md:text-sm text-blue-100 font-medium italic">Share the link and code below.</p>
             </div>
             
-            <div class="p-8 space-y-6">
+            <div class="p-6 md:p-8 space-y-4 md:space-y-6">
                 <!-- QR Code Section -->
-                <div class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                    <div id="share-qrcode" class="bg-white p-2 rounded-lg shadow-sm mb-2"></div>
-                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">Scan to join</p>
+                <div class="flex flex-col items-center justify-center p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl border-2 border-dashed border-gray-200">
+                    <div id="share-qrcode" class="bg-white p-2 rounded-lg shadow-sm"></div>
+                    <p class="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">Scan to join</p>
                 </div>
 
                 <!-- URL Section -->
                 <div>
-                    <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Platform URL</label>
+                    <label class="block text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Platform URL</label>
                     <div class="flex gap-2">
-                        <input type="text" id="share-url-input" readonly value="https://physicstjc.github.io/quiz/" class="flex-grow bg-gray-50 border-2 border-gray-100 p-4 rounded-xl font-mono text-sm outline-none">
-                        <button onclick="copyToClipboard('share-url-input')" class="bg-gray-100 hover:bg-gray-200 p-4 rounded-xl transition-all">
+                        <input type="text" id="share-url-input" readonly value="https://physicstjc.github.io/quiz/" class="flex-grow bg-gray-50 border-2 border-gray-100 p-3 md:p-4 rounded-xl font-mono text-xs md:text-sm outline-none">
+                        <button onclick="copyToClipboard('share-url-input')" class="bg-gray-100 hover:bg-gray-200 p-3 md:p-4 rounded-xl transition-all h-full flex items-center justify-center">
                             <ion-icon name="copy-outline"></ion-icon>
                         </button>
                     </div>
@@ -423,13 +433,13 @@
 
                 <!-- Code Section -->
                 <div>
-                    <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Quiz Join Code</label>
-                    <div class="text-center bg-blue-50 border-2 border-blue-100 p-8 rounded-2xl">
-                        <span id="share-code-display" class="text-5xl font-black text-blue-600 tracking-[0.2em] font-mono">------</span>
+                    <label class="block text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Quiz Join Code</label>
+                    <div class="text-center bg-blue-50 border-2 border-blue-100 p-4 md:p-8 rounded-xl md:rounded-2xl">
+                        <span id="share-code-display" class="text-3xl md:text-5xl font-black text-blue-600 tracking-[0.2em] font-mono">------</span>
                     </div>
                 </div>
 
-                <button id="close-share-modal" class="w-full bg-black text-white font-black py-4 rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg">
+                <button id="close-share-modal" class="w-full bg-black text-white font-black py-3 md:py-4 rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg text-sm md:text-base">
                     Done
                 </button>
             </div>

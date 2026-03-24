@@ -28,6 +28,7 @@ const views = {
     attemptDetail: document.getElementById('view-attempt-detail'),
     manageStudents: document.getElementById('view-manage-students')
 };
+const exitPreviewBtn = document.getElementById('exit-preview-btn');
 
 // UI Components
 const navUserName = document.getElementById('nav-user-name');
@@ -497,49 +498,172 @@ function resetQuizBuilder() {
 
 function addQuestionToBuilder() {
     const qId = Date.now();
-    const q = { id: qId, text: "", options: ["", "", "", ""], correctAnswer: 0, image: null, explanation: "" };
+    const q = { id: qId, text: "", options: ["", "", "", ""], optionImages: [null, null, null, null], correctAnswer: 0, image: null, explanation: "" };
     currentQuizQuestions.push(q);
     renderQuestionBlock(q, currentQuizQuestions.length - 1);
 }
 
+// Function to handle image uploads for Quill
+async function handleQuillImageUpload(quill, qId) {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+
+        try {
+            const range = quill.getSelection(true);
+            const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
+            const fileRef = ref(storage, storagePath);
+            const snapshot = await uploadBytes(fileRef, file);
+            const url = await getDownloadURL(snapshot.ref);
+            
+            quill.insertEmbed(range.index, 'image', url);
+            quill.setSelection(range.index + 1);
+        } catch (error) {
+            console.error("Quill image upload failed:", error);
+            alert("Failed to upload image. Please try again.");
+        }
+    };
+}
+
+// Function to handle all image uploads (quill or options)
+window.uploadImage = async (qId, file, type, extra) => {
+    if (!file) return;
+    try {
+        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
+        const fileRef = ref(storage, storagePath);
+        const snapshot = await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(snapshot.ref);
+        
+        if (type === 'optionImage') {
+            window.updateOptionImage(qId, extra, url);
+        }
+    } catch (err) {
+        alert("Upload failed: " + err.message);
+    }
+};
+
 function renderQuestionBlock(q, qIndex) {
     const qBlock = document.createElement('div');
-    qBlock.className = "bg-gray-50 p-8 rounded-2xl border-2 border-dashed border-gray-200 relative q-block";
+    qBlock.className = "q-block bg-white border-2 border-indigo-50 p-8 rounded-3xl mb-8 transition-all hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-50/50 group relative";
+    
+    // Ensure optionImages exists for old quizzes being edited
+    if (!q.optionImages) q.optionImages = [null, null, null, null];
+
+    const editorId = `editor-${q.id}`;
     qBlock.innerHTML = `
-        <div class="flex justify-between items-center mb-6">
-            <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest">Question ${qIndex + 1}</h4>
-            <button class="text-red-400 hover:text-red-500 transition-colors" onclick="removeQuestion(${q.id})">
-                <ion-icon name="trash-outline" size="large"></ion-icon>
+        <!-- Floating Question Number Badge -->
+        <div class="absolute -top-4 -left-4 w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+           ${currentQuizQuestions.indexOf(q) + 1}
+        </div>
+
+        <div class="flex justify-between items-start mb-8 ml-6">
+            <h3 class="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                <ion-icon name="help-circle" class="text-lg"></ion-icon>
+                Question Details
+            </h3>
+            <button onclick="removeQuestion('${q.id}')" class="text-red-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-all flex items-center gap-2 text-xs font-bold">
+                <ion-icon name="trash-outline" class="text-lg"></ion-icon>
+                Remove
             </button>
         </div>
-        <div class="space-y-6">
+
+        <div class="space-y-8 ml-6">
             <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Text (supports $...$ for LaTeX)</label>
-                <textarea class="w-full border p-4 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 q-text" oninput="updateQ(${q.id}, 'text', this.value)" rows="3">${q.text}</textarea>
+                <label class="block text-xs font-bold text-indigo-500 uppercase tracking-widest mb-3">Question Content</label>
+                <!-- Container for Quill Editor -->
+                <div class="border-2 border-indigo-50 rounded-2xl overflow-hidden focus-within:border-indigo-400 transition-colors">
+                    <div id="${editorId}" class="quill-editor h-64 bg-white"></div>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Image (Optional)</label>
-                ${q.image ? `<div class="mb-2 relative w-32 h-32 border rounded-lg overflow-hidden group">
-                    <img src="${q.image}" class="w-full h-full object-cover">
-                    <button onclick="updateQ(${q.id}, 'image', null); this.parentElement.remove()" class="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
-                </div>` : ''}
-                <input type="file" class="w-full" accept="image/*" onchange="uploadImage(${q.id}, this.files[0])">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                 ${[0, 1, 2, 3].map(i => `
-                    <div class="flex items-center gap-3 bg-white p-3 rounded-xl border">
-                        <input type="radio" name="correct-${q.id}" value="${i}" ${i === q.correctAnswer ? 'checked' : ''} onchange="updateQ(${q.id}, 'correctAnswer', ${i})">
-                        <input type="text" class="w-full outline-none font-medium text-sm" placeholder="Option ${String.fromCharCode(65 + i)}" value="${q.options[i]}" oninput="updateOption(${q.id}, ${i}, this.value)">
+                    <div class="bg-indigo-50/30 p-6 rounded-2xl border border-transparent hover:border-indigo-100 transition-all">
+                        <div class="flex items-center justify-between mb-4">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="correct-${q.id}" ${q.correctAnswer === i ? 'checked' : ''} 
+                                       onchange="window.updateQ('${q.id}', 'correctAnswer', ${i})" 
+                                       class="w-5 h-5 text-indigo-600 border-2 border-indigo-200 focus:ring-indigo-500">
+                                <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Option ${String.fromCharCode(65 + i)}</span>
+                            </label>
+                            
+                            <!-- Option Image Upload -->
+                            <div class="flex items-center gap-2">
+                                <label class="cursor-pointer text-indigo-500 hover:text-indigo-700 bg-white p-2 rounded-lg shadow-sm border border-indigo-50 transition-all flex items-center gap-2 text-[10px] font-bold">
+                                    <ion-icon name="image-outline"></ion-icon>
+                                    ${q.optionImages[i] ? 'Change Image' : 'Add Image'}
+                                    <input type="file" class="hidden" accept="image/*" onchange="uploadImage('${q.id}', this.files[0], 'optionImage', ${i})">
+                                </label>
+                                ${q.optionImages[i] ? `
+                                    <button onclick="updateOptionImage('${q.id}', ${i}, null); this.closest('.bg-indigo-50/30').querySelector('.opt-img-container').remove();" class="text-red-400 hover:text-red-600 p-2">
+                                        <ion-icon name="close-circle-outline"></ion-icon>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <div class="opt-img-container">
+                            ${q.optionImages[i] ? `
+                                <div class="mb-4 rounded-xl overflow-hidden border-2 border-white shadow-sm h-32 w-full bg-white flex items-center justify-center">
+                                    <img src="${q.optionImages[i]}" class="max-h-full object-contain">
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <input type="text" class="w-full bg-white border-2 border-indigo-50 p-4 rounded-xl outline-none focus:border-indigo-400 transition-all text-gray-700 font-medium placeholder:text-gray-300" 
+                               value="${q.options[i]}" placeholder="Type option text..." 
+                               oninput="updateOption('${q.id}', ${i}, this.value)">
                     </div>
                 `).join('')}
             </div>
+
             <div>
-                <label class="block text-xs font-bold text-indigo-500 uppercase tracking-widest mb-2">Solution Explanation (Optional)</label>
-                <textarea class="w-full border p-4 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 italic" placeholder="Explain why the answer is correct..." oninput="updateQ(${q.id}, 'explanation', this.value)" rows="2">${q.explanation || ""}</textarea>
+                <label class="block text-xs font-bold text-indigo-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <ion-icon name="bulb-outline"></ion-icon>
+                    Solution Explanation (Optional)
+                </label>
+                <textarea class="w-full bg-white border-2 border-indigo-50 p-6 rounded-2xl outline-none focus:border-indigo-400 transition-all italic text-gray-600 placeholder:text-gray-300 min-h-[100px]" 
+                          placeholder="Why is this the correct answer?" 
+                          oninput="window.updateQ('${q.id}', 'explanation', this.value)">${q.explanation || ""}</textarea>
             </div>
         </div>
     `;
     questionsContainer.appendChild(qBlock);
+
+    // Initialize Quill for this specific question
+    const quill = new Quill(`#${editorId}`, {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link', 'image'],
+                ['clean']
+            ]
+        },
+        placeholder: 'Write your question here...'
+    });
+
+    // Load initial content if editing
+    if (q.text) {
+        quill.root.innerHTML = q.text;
+    }
+
+    // Custom image handler for Quill to upload to Firebase instead of base64
+    quill.getModule('toolbar').addHandler('image', () => {
+        handleQuillImageUpload(quill, q.id);
+    });
+
+    // Sync content to state
+    quill.on('text-change', () => {
+        // Use root.innerHTML to get the rich text content
+        window.updateQ(q.id, 'text', quill.root.innerHTML);
+    });
 }
 
 window.removeQuestion = (id) => {
@@ -553,17 +677,50 @@ window.updateQ = (id, key, val) => {
     if (q) q[key] = val;
 };
 
+window.updateOptionImage = (id, optIdx, val) => {
+    const q = currentQuizQuestions.find(q => q.id == id); // Use weak equality check (==) in case id is string vs number
+    if (q) {
+        if (!q.optionImages) q.optionImages = [null, null, null, null];
+        q.optionImages[optIdx] = val;
+        
+        // Find and update preview
+        const blocks = questionsContainer.querySelectorAll('.q-block');
+        // Find the block that contains this specific question ID
+        const block = Array.from(blocks).find(b => b.innerHTML.includes(`name="correct-${id}"`) || b.innerHTML.includes(`'${id}'`));
+        if (block) {
+            const container = block.querySelectorAll('.opt-img-container')[optIdx];
+            if (val) {
+                container.innerHTML = `
+                    <div class="mb-4 rounded-xl overflow-hidden border-2 border-white shadow-sm h-32 w-full bg-white flex items-center justify-center">
+                        <img src="${val}" class="max-h-full object-contain">
+                    </div>
+                `;
+            } else {
+                container.innerHTML = '';
+            }
+        }
+    }
+};
+
 window.updateOption = (id, optIdx, val) => {
     const q = currentQuizQuestions.find(q => q.id === id);
     if (q) q.options[optIdx] = val;
 };
 
-window.uploadImage = async (id, file) => {
+window.uploadImage = async (qId, file, type, extra) => {
     if (!file) return;
-    const fileRef = ref(storage, `quiz-images/${currentUser.uid}/${id}-${file.name}`);
-    const snapshot = await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(snapshot.ref);
-    updateQ(id, 'image', url);
+    try {
+        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
+        const fileRef = ref(storage, storagePath);
+        const snapshot = await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(snapshot.ref);
+        
+        if (type === 'optionImage') {
+            window.updateOptionImage(qId, extra, url);
+        }
+    } catch (err) {
+        alert("Upload failed: " + err.message);
+    }
 };
 
 addQuestionBtn.onclick = addQuestionToBuilder;
@@ -839,25 +996,30 @@ window.viewResults = async (quizId) => {
         const questionDiv = document.createElement('div');
         questionDiv.className = "bg-white p-10 rounded-3xl border shadow-sm";
         questionDiv.innerHTML = `
-            <div class="mb-8 border-b pb-6">
+                <div class="mb-6 border-b pb-6">
                 <span class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">Question ${qIdx + 1}</span>
-                <h4 class="text-xl font-bold mt-2 text-gray-800 leading-tight">${q.text}</h4>
-                ${q.image ? `<img src="${q.image}" class="max-w-xs mt-6 rounded-2xl shadow-sm border border-gray-100">` : ''}
+                <div class="text-lg font-bold mt-2 text-gray-800 leading-tight prose prose-indigo max-w-none">${q.text}</div>
             </div>
             
             <div class="space-y-6">
                 ${q.options.map((opt, optIdx) => {
                     const count = countsByOption[optIdx];
-                    const percentage = counts === 0 ? 0 : Math.round((count / counts) * 100);
+                    const totalForQuestion = countsByOption.reduce((a, b) => a + b, 0);
+                    const percentage = totalForQuestion === 0 ? 0 : Math.round((count / totalForQuestion) * 100);
                     const isCorrect = optIdx === q.correctAnswer;
+                    const hasOptionImage = q.optionImages && q.optionImages[optIdx];
+                    const hasText = opt && opt.trim().length > 0;
                     
                     return `
                         <div>
-                            <div class="flex justify-between items-center mb-2 px-1">
-                                <span class="text-sm font-bold ${isCorrect ? 'text-green-600' : 'text-gray-500'}">
-                                    <span class="mr-2 font-black">${String.fromCharCode(65 + optIdx)}</span> ${opt} ${isCorrect ? '✓' : ''}
-                                </span>
-                                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${count} students (${percentage}%)</span>
+                            <div class="flex justify-between items-start mb-2 px-1">
+                                <div class="flex flex-col gap-2">
+                                    <span class="text-sm font-bold ${isCorrect ? 'text-green-600' : 'text-gray-500'}">
+                                        <span class="mr-2 font-black">${String.fromCharCode(65 + optIdx)}</span> ${hasText ? opt : '<span class="italic text-gray-300">No text</span>'} ${isCorrect ? '✓' : ''}
+                                    </span>
+                                    ${hasOptionImage ? `<img src="${q.optionImages[optIdx]}" class="max-h-24 w-auto rounded-lg border bg-white shadow-sm mt-1">` : ''}
+                                </div>
+                                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest text-right whitespace-nowrap ml-4">${count} students (${percentage}%)</span>
                             </div>
                             <div class="w-full bg-gray-50 rounded-full h-4 overflow-hidden border border-gray-100 p-0.5">
                                 <div class="${isCorrect ? 'bg-green-500' : 'bg-indigo-400'} h-full rounded-full transition-all duration-1000 shadow-sm" style="width: ${percentage}%"></div>
@@ -1012,8 +1174,9 @@ window.viewAttemptDetail = async (attemptId) => {
                         ${isCorrect ? 'Correct' : 'Incorrect'}
                     </span>
                 </div>
-                <div class="text-xl font-bold mb-6">${q.text}</div>
-                ${q.image ? `<img src="${q.image}" class="max-w-md h-auto rounded-xl shadow-sm mb-6">` : ''}
+                <div class="mb-6">
+                    <div class="text-lg font-bold mb-4 prose prose-indigo max-w-none">${q.text}</div>
+                </div>
                 
                 <div class="space-y-3 mb-6">
                     ${q.options.map((opt, i) => {
@@ -1035,10 +1198,16 @@ window.viewAttemptDetail = async (attemptId) => {
                             icon = '<ion-icon name="checkmark-circle-outline"></ion-icon>';
                         }
 
+                        const hasImage = q.optionImages && q.optionImages[i];
+                        const hasText = opt && opt.trim().length > 0;
+
                         return `
                             <div class="p-4 rounded-xl flex items-center justify-between font-bold ${style}">
-                                <span>${opt}</span>
-                                <span class="text-2xl">${icon}</span>
+                                <div class="flex-1 space-y-2">
+                                    ${hasImage ? `<img src="${q.optionImages[i]}" class="max-h-32 object-contain rounded-lg border bg-white shadow-sm">` : ''}
+                                    ${hasText ? `<span>${opt}</span>` : (!hasImage ? `<span class="italic text-gray-300">Empty option</span>` : '')}
+                                </div>
+                                <span class="text-2xl ml-4">${icon}</span>
                             </div>
                         `;
                     }).join('')}
@@ -1109,6 +1278,7 @@ window.startQuiz = async (quizId, quizData = null) => {
     feedbackShown = false;
     
     showView('quizRoom');
+    exitPreviewBtn.classList.add('hidden');
     renderQuizQuestion();
 };
 
@@ -1124,7 +1294,13 @@ window.previewQuiz = async (quizId) => {
     isPreviewMode = true;
     
     showView('quizRoom');
+    exitPreviewBtn.classList.remove('hidden');
     renderQuizQuestion();
+};
+
+exitPreviewBtn.onclick = () => {
+    isPreviewMode = false;
+    showView('teacher');
 };
 
 function renderQuizQuestion() {
@@ -1138,25 +1314,30 @@ function renderQuizQuestion() {
     const dotsTarget = document.getElementById('quiz-progress-dots');
     const nextBtn = document.getElementById('next-question-btn');
 
-    textTarget.innerText = q.text;
+    // Use innerHTML instead of innerText for textTarget to support rich text content
+    textTarget.innerHTML = q.text;
+    textTarget.classList.add('prose', 'prose-indigo', 'max-w-none');
     
-    if (q.image) {
-        imageTarget.innerHTML = `<img src="${q.image}" class="w-full h-auto">`;
-        imageTarget.classList.remove('hidden');
-    } else {
-        imageTarget.classList.add('hidden');
-    }
+    // Hide the separate imageTarget as image is now handled within TinyMCE inline
+    imageTarget.classList.add('hidden');
 
     optionsTarget.innerHTML = "";
     q.options.forEach((opt, i) => {
+        const hasText = opt && opt.trim().length > 0;
+        const hasImage = q.optionImages && q.optionImages[i];
+        
         const btn = document.createElement('button');
         btn.id = `opt-${i}`;
-        btn.className = `w-full text-left p-6 rounded-2xl border-2 transition-all flex items-center gap-4 ${studentAnswers[currentQIdx] === i ? 'border-blue-600 bg-blue-50 text-blue-800 ring-4 ring-blue-50 shadow-sm font-black' : 'border-gray-100 hover:bg-gray-50 text-gray-600 font-medium'}`;
+        btn.className = `w-full text-left p-4 md:p-6 rounded-2xl border-2 transition-all flex items-start gap-4 ${studentAnswers[currentQIdx] === i ? 'border-blue-600 bg-blue-50 text-blue-800 ring-4 ring-blue-50 shadow-sm font-black' : 'border-gray-100 hover:bg-gray-50 text-gray-600 font-medium'}`;
+        
         btn.innerHTML = `
-            <div class="w-8 h-8 rounded-full border-2 flex-shrink-0 flex items-center justify-center font-bold text-sm ${studentAnswers[currentQIdx] === i ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-200'}">
+            <div class="w-8 h-8 rounded-full border-2 flex-shrink-0 flex items-center justify-center font-bold text-sm mt-0.5 ${studentAnswers[currentQIdx] === i ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-200'}">
                 ${String.fromCharCode(65 + i)}
             </div>
-            <span>${opt}</span>
+            <div class="flex-1 space-y-3">
+                ${hasImage ? `<img src="${q.optionImages[i]}" class="w-full max-h-48 object-contain rounded-lg border bg-white">` : ''}
+                ${hasText ? `<span class="block">${opt}</span>` : (!hasImage ? `<span class="text-gray-300 italic">Empty option</span>` : '')}
+            </div>
         `;
         btn.onclick = () => {
             studentAnswers[currentQIdx] = i;

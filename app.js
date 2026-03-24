@@ -479,7 +479,8 @@ window.editQuiz = async (quizId) => {
     quizTitleInput.value = quiz.title;
     quizDescInput.value = quiz.description || "";
     questionsContainer.innerHTML = "";
-    currentQuizQuestions = quiz.questions || [];
+    // Create a NEW copy of the questions array to avoid reference issues
+    currentQuizQuestions = JSON.parse(JSON.stringify(quiz.questions || []));
 
     currentQuizQuestions.forEach((q, idx) => {
         renderQuestionBlock(q, idx);
@@ -617,7 +618,7 @@ function renderQuestionBlock(q, qIndex) {
 
                         <input type="text" class="w-full bg-white border-2 border-indigo-50 p-4 rounded-xl outline-none focus:border-indigo-400 transition-all text-gray-700 font-medium placeholder:text-gray-300" 
                                value="${q.options[i]}" placeholder="Type option text..." 
-                               oninput="updateOption('${q.id}', ${i}, this.value)">
+                               oninput="window.updateOption('${q.id}', ${i}, this.value)">
                     </div>
                 `).join('')}
             </div>
@@ -703,7 +704,7 @@ window.updateOptionImage = (id, optIdx, val) => {
 };
 
 window.updateOption = (id, optIdx, val) => {
-    const q = currentQuizQuestions.find(q => q.id === id);
+    const q = currentQuizQuestions.find(q => q.id == id);
     if (q) q.options[optIdx] = val;
 };
 

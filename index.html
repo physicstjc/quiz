@@ -273,7 +273,13 @@
                     <div class="flex flex-col gap-2">
                         <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Privacy</label>
                         <button id="toggle-names-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
-                            <ion-icon name="eye-off-outline"></ion-icon> Hide Names
+                            <ion-icon name="eye-outline"></ion-icon> Show Names
+                        </button>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Settings</label>
+                        <button id="toggle-retakes-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
+                            <ion-icon name="refresh-outline" id="retake-icon"></ion-icon> <span id="retake-text">Standard (One Try)</span>
                         </button>
                     </div>
                     <div class="flex flex-col gap-2">
@@ -300,20 +306,28 @@
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                    <table class="w-full text-left">
-                        <thead class="bg-gray-50 text-xs text-gray-400 font-bold uppercase border-b">
-                            <tr>
-                                <th class="px-6 py-4">Student Name</th>
-                                <th class="px-6 py-4">Email</th>
-                                <th class="px-6 py-4">Score</th>
-                                <th class="px-6 py-4">Date</th>
-                                <th class="px-6 py-4"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="results-tbody" class="divide-y divide-gray-100">
-                            <!-- Rows -->
-                        </tbody>
-                    </table>
+                    <div id="toggle-table-btn" class="bg-gray-50 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition-colors border-b">
+                        <span class="text-xs font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <ion-icon name="list-outline"></ion-icon> Student Responses
+                        </span>
+                        <ion-icon name="chevron-down-outline" id="table-chevron" class="text-gray-400 transition-transform duration-300"></ion-icon>
+                    </div>
+                    <div id="results-table-container" class="hidden animate-in slide-in-from-top-2 duration-300">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 text-xs text-gray-400 font-bold uppercase border-b">
+                                <tr>
+                                    <th class="px-6 py-4">Student Name</th>
+                                    <th class="px-6 py-4">Email</th>
+                                    <th class="px-6 py-4">Score</th>
+                                    <th class="px-6 py-4">Date</th>
+                                    <th class="px-6 py-4"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-tbody" class="divide-y divide-gray-100">
+                                <!-- Rows -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Quiz Analysis Section -->
@@ -372,7 +386,53 @@
     <!-- Styles for Inter font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <!-- App Logic -->
     <script type="module" src="app.js"></script>
+
+    <!-- Share Quiz Modal (Teacher) -->
+    <div id="modal-share-quiz" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl border overflow-hidden animate-in zoom-in duration-300">
+            <div class="bg-blue-600 p-8 text-white text-center">
+                <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <ion-icon name="share-social-outline" class="text-4xl"></ion-icon>
+                </div>
+                <h3 class="text-2xl font-black tracking-tight mb-2">Invite Students</h3>
+                <p class="text-blue-100 font-medium italic">Share the link and code below.</p>
+            </div>
+            
+            <div class="p-8 space-y-6">
+                <!-- URL Section -->
+                <div>
+                    <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Platform URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="share-url-input" readonly value="https://physicstjc.github.io/quiz/" class="flex-grow bg-gray-50 border-2 border-gray-100 p-4 rounded-xl font-mono text-sm outline-none">
+                        <button onclick="copyToClipboard('share-url-input')" class="bg-gray-100 hover:bg-gray-200 p-4 rounded-xl transition-all">
+                            <ion-icon name="copy-outline"></ion-icon>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Code Section -->
+                <div>
+                    <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Quiz Join Code</label>
+                    <div class="text-center bg-blue-50 border-2 border-blue-100 p-8 rounded-2xl">
+                        <span id="share-code-display" class="text-5xl font-black text-blue-600 tracking-[0.2em] font-mono">------</span>
+                    </div>
+                </div>
+
+                <button id="close-share-modal" class="w-full bg-black text-white font-black py-4 rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(inputId) {
+            const input = document.getElementById(inputId);
+            input.select();
+            document.execCommand('copy');
+            alert('Copied to clipboard!');
+        }
+    </script>
 </body>
 </html>

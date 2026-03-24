@@ -96,6 +96,29 @@ onAuthStateChanged(auth, (user) => {
         } else {
             showView('student');
             refreshStudentDashboard();
+
+            // Auto-join quiz if code is in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const quizCode = urlParams.get('code');
+            if (quizCode) {
+                console.log("Auto-joining quiz with code:", quizCode);
+                joinQuizBtn.disabled = true;
+                joinQuizBtn.innerText = "JOINING...";
+                
+                const q = query(collection(db, "quizzes"), where("quizCode", "==", quizCode.toUpperCase()));
+                getDocs(q).then(snap => {
+                    if (!snap.empty) {
+                        const docSnap = snap.docs[0];
+                        // Clear the URL parameter so it doesn't re-trigger on refresh
+                        const newUrl = window.location.origin + window.location.pathname;
+                        window.history.replaceState({}, document.title, newUrl);
+                        startQuiz(docSnap.id, docSnap.data());
+                    }
+                }).finally(() => {
+                    joinQuizBtn.disabled = false;
+                    joinQuizBtn.innerText = "JOIN";
+                });
+            }
         }
     } else {
         currentUser = null;
@@ -120,6 +143,25 @@ logoutBtn.onclick = () => {
 // ----------------------------------------------------
 // TEACHER DASHBOARD LOGIC
 // ----------------------------------------------------
+function showShareModal(code) {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${baseUrl}?code=${code}`;
+    
+    document.getElementById('share-url-input').value = shareUrl;
+    document.getElementById('share-code-display').innerText = code || '------';
+    document.getElementById('modal-share-quiz').classList.remove('hidden');
+}
+
+document.getElementById('close-share-modal').onclick = () => {
+    document.getElementById('modal-share-quiz').classList.add('hidden');
+};
+
+// Also close on background click
+document.getElementById('modal-share-quiz').onclick = (e) => {
+    if (e.target.id === 'modal-share-quiz') {
+        document.getElementById('modal-share-quiz').classList.add('hidden');
+    }
+};
 const addQuizBtn = document.getElementById('add-quiz-btn');
 const manageStudentsBtn = document.getElementById('manage-students-btn');
 const teacherQuizList = document.getElementById('teacher-quiz-list');
@@ -348,36 +390,45 @@ async function refreshTeacherDashboard() {
             return;
         }
 
-        snap.forEach(doc => {
-            const quiz = doc.data();
-            const card = document.createElement('div');
-            card.className = "bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-all flex flex-col justify-between";
-            card.innerHTML = `
+            snap.forEach(docSnap => {
+                const quiz = docSnap.data();
+                const card = document.createElement('div');
+                card.className = "group bg-white p-8 rounded-2xl shadow-sm border hover:shadow-xl hover:border-blue-400 hover:-translate-y-1 transition-all flex flex-col justify-between cursor-pointer";
+                
+                // Clicking the card area itself triggers the Share Share Modal
+                card.onclick = (e) => {
+                    const btnActions = e.target.closest('button');
+                    if (!btnActions) {
+                        showShareModal(quiz.quizCode);
+                    }
+                };
+
+                card.innerHTML = `
                 <div>
                     <div class="flex justify-between items-start mb-4">
-                        <h3 class="text-xl font-black tracking-tight leading-tight">${quiz.title}</h3>
+                        <h3 class="text-xl font-black tracking-tight leading-tight group-hover:text-blue-600 transition-colors">${quiz.title}</h3>
                         <div class="bg-indigo-50 text-indigo-700 font-mono font-bold text-xs px-2 py-1 rounded border border-indigo-100 uppercase tracking-widest">${quiz.quizCode || 'NO CODE'}</div>
                     </div>
                     <p class="text-sm text-gray-500 mb-6 italic line-clamp-2">${quiz.description || "No description."}</p>
                     <div class="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-1 rounded inline-block uppercase mb-6 tracking-widest">${quiz.questions.length} Questions</div>
                 </div>
                 <div class="flex gap-2">
-                    <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Preview Quiz" onclick="previewQuiz('${doc.id}')">
+                    <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Preview Quiz" onclick="previewQuiz('${docSnap.id}')">
                         <ion-icon name="eye"></ion-icon>
                     </button>
-                    <button class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center" title="Edit Quiz" onclick="editQuiz('${doc.id}')">
+                    <button class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Edit Quiz" onclick="editQuiz('${docSnap.id}')">
                         <ion-icon name="create-outline"></ion-icon>
                     </button>
-                    <button class="flex-grow bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2" onclick="viewResults('${doc.id}')">
+                    <button class="flex-grow bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 font-black" onclick="viewResults('${docSnap.id}')">
                         <ion-icon name="stats-chart"></ion-icon> Results
                     </button>
-                    <button class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center" onclick="confirmDeleteQuiz('${doc.id}', '${quiz.title.replace(/'/g, "\\'")}')">
+                    <button class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" onclick="confirmDeleteQuiz('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
                         <ion-icon name="trash"></ion-icon>
                     </button>
                 </div>
             `;
-            teacherQuizList.appendChild(card);
-        });
+                teacherQuizList.appendChild(card);
+            });
     } catch (error) {
         console.error("Full Error:", error);
         if (error.code === 'failed-precondition') {
@@ -567,14 +618,23 @@ window.confirmDeleteQuiz = async (quizId, quizTitle) => {
 // TEACHER RESULTS LOGIC
 // ----------------------------------------------------
 let currentResultsQuizId = null;
-let namesHidden = false;
+let namesHidden = true;
 
 document.getElementById('toggle-names-btn').onclick = function() {
     namesHidden = !namesHidden;
     this.innerHTML = namesHidden 
-        ? `<ion-icon name="eye-outline"></ion-icon> Show Names` 
-        : `<ion-icon name="eye-off-outline"></ion-icon> Hide Names`;
+        ? `<ion-icon name="eye-off-outline"></ion-icon> Hide Names`
+        : `<ion-icon name="eye-outline"></ion-icon> Show Names`;
     
+    // Reverse logic to match actual expectation: 
+    // If namesHidden is true, button should say "Show Names" (action to take)
+    // If namesHidden is false, button should say "Hide Names" (action to take)
+    if (namesHidden) {
+        this.innerHTML = `<ion-icon name="eye-outline"></ion-icon> Show Names`;
+    } else {
+        this.innerHTML = `<ion-icon name="eye-off-outline"></ion-icon> Hide Names`;
+    }
+
     const resultsTbody = document.getElementById('results-tbody');
     const rows = resultsTbody.querySelectorAll('tr');
     rows.forEach(row => {
@@ -603,6 +663,13 @@ document.getElementById('toggle-names-btn').onclick = function() {
             tag.innerHTML = tag.dataset.originalContent || tag.innerHTML;
         }
     });
+};
+
+document.getElementById('toggle-table-btn').onclick = function() {
+    const container = document.getElementById('results-table-container');
+    const chevron = document.getElementById('table-chevron');
+    const isHidden = container.classList.toggle('hidden');
+    chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
 };
 
 document.getElementById('class-filter').onchange = () => {
@@ -704,6 +771,36 @@ window.viewResults = async (quizId) => {
     document.getElementById('stat-avg-score').innerText = counts === 0 ? "-" : (totalScore / counts).toFixed(1);
     document.getElementById('stat-takers').innerText = counts;
     document.getElementById('stat-pass').innerText = passing;
+
+    // ----------------------------------------------------
+    // QUIZ SETTINGS & RETAKE TOGGLE
+    // ----------------------------------------------------
+    const retakeBtn = document.getElementById('toggle-retakes-btn');
+    const updateRetakeUI = (allowed) => {
+        const text = document.getElementById('retake-text');
+        const icon = document.getElementById('retake-icon');
+        if (allowed) {
+            text.innerText = "Unlimited Retakes";
+            retakeBtn.classList.add('bg-blue-100', 'text-blue-700');
+            retakeBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            icon.name = "infinite-outline";
+        } else {
+            text.innerText = "Standard (One Try)";
+            retakeBtn.classList.add('bg-gray-100', 'text-gray-700');
+            retakeBtn.classList.remove('bg-blue-100', 'text-blue-700');
+            icon.name = "refresh-outline";
+        }
+    };
+    const currentQuizData = qSnap.data();
+    updateRetakeUI(currentQuizData.allowRetakes || false);
+
+    retakeBtn.onclick = async () => {
+        const isAllowed = !(currentQuizData.allowRetakes || false);
+        try {
+            await updateDoc(doc(db, "quizzes", quizId), { allowRetakes: isAllowed });
+            viewResults(quizId); // refresh
+        } catch (e) { alert(e.message); }
+    };
 
     // ----------------------------------------------------
     // QUIZ ANALYSIS LOGIC (UPDATED WITH CLASS FILTER)
@@ -970,14 +1067,23 @@ let isPreviewMode = false;
 
 window.startQuiz = async (quizId, quizData = null) => {
     isPreviewMode = false;
-    if (quizData) {
-        activeQuiz = quizData;
-        activeQuizId = quizId;
-    } else {
-        const snap = await getDoc(doc(db, "quizzes", quizId));
-        if (!snap.exists()) return;
-        activeQuiz = snap.data();
-        activeQuizId = quizId;
+    
+    // Check if retakes are allowed
+    const quizRef = doc(db, "quizzes", quizId);
+    const snap = quizData ? { exists: () => true, data: () => quizData } : await getDoc(quizRef);
+    if (!snap.exists()) return;
+    
+    activeQuiz = snap.data();
+    activeQuizId = quizId;
+
+    if (userRole === 'student') {
+        const attemptId = `${currentUser.email.toLowerCase()}_${quizId}`;
+        const attemptSnap = await getDoc(doc(db, "quiz_attempts", attemptId));
+        
+        if (attemptSnap.exists() && !activeQuiz.allowRetakes) {
+            alert("This quiz does not allow retakes. You have already submitted your response.");
+            return;
+        }
     }
     
     currentQIdx = 0;

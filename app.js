@@ -674,7 +674,7 @@ window.removeQuestion = (id) => {
 };
 
 window.updateQ = (id, key, val) => {
-    const q = currentQuizQuestions.find(q => q.id === id);
+    const q = currentQuizQuestions.find(q => q.id == id);
     if (q) q[key] = val;
 };
 

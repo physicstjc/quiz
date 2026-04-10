@@ -1030,23 +1030,30 @@ window.viewResults = async (quizId) => {
     // Fetch student mappings for classes
     const studentSnap = await getDocs(collection(db, "students"));
     const studentMap = {};
-    const classes = new Set();
     studentSnap.forEach(d => {
         const s = d.data();
         studentMap[s.email.toLowerCase()] = s;
-        if (s.class) classes.add(s.class);
     });
 
-    // Update class filter dropdown if it's the first load or "all"
-    const currentOptions = Array.from(classFilter.options).map(o => o.value);
-    classes.forEach(c => {
-        if (!currentOptions.includes(c)) {
-            const opt = document.createElement('option');
-            opt.value = c;
-            opt.textContent = c;
-            classFilter.appendChild(opt);
-        }
+    // Update class filter dropdown to show only assigned classes
+    const assignedClasses = qSnap.exists() ? (qSnap.data().assignedClasses || []) : [];
+    
+    // Clear and rebuild filter
+    const currentVal = classFilter.value;
+    classFilter.innerHTML = '<option value="all">All Classes</option>';
+    assignedClasses.sort().forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        classFilter.appendChild(opt);
     });
+    
+    // Keep selection if it still exists
+    if (assignedClasses.includes(currentVal)) {
+        classFilter.value = currentVal;
+    } else {
+        classFilter.value = "all";
+    }
 
     const resQ = query(collection(db, "quiz_attempts"), where("quizId", "==", quizId), orderBy("submittedAt", "desc"));
     const resSnap = await getDocs(resQ);

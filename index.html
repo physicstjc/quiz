@@ -349,14 +349,24 @@
         </main>
     </div>
 
-    <!-- Tailwind Play CDN for utility classes -->
+    <!-- Tailwind CSS (Direct Link for Production) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @layer base {
+            :root {
+                --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+            }
+        }
+    </style>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'bounce-short': 'bounce 1s ease-in-out 2'
                     }
                 }
             }

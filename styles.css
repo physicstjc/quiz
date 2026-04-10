@@ -1,0 +1,110 @@
+:root {
+    --brand-yellow: #FFEE99;
+    --brutal-black: #000000;
+    --brutal-white: #FFFFFF;
+    --brutal-border: 3px;
+    --brutal-shadow: 6px;
+}
+
+body {
+    background-color: #f7f7f7;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--brutal-black);
+}
+
+/* Neo-Brutalist Core Components */
+.neo-brutal {
+    border: var(--brutal-border) solid var(--brutal-black);
+    box-shadow: var(--brutal-shadow) var(--brutal-shadow) 0px var(--brutal-black);
+    transition: all 0.1s ease;
+    background-color: var(--brutal-white);
+}
+
+.neo-brutal:active:not([disabled]) {
+    box-shadow: 0px 0px 0px var(--brutal-black);
+    transform: translate(3px, 3px);
+}
+
+.neo-header {
+    background-color: var(--brand-yellow);
+    border-bottom: var(--brutal-border) solid var(--brutal-black) !important;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.neo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1.25rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border: var(--brutal-border) solid var(--brutal-black);
+    box-shadow: 4px 4px 0px var(--brutal-black);
+    transition: all 0.1s;
+}
+
+.neo-btn:hover:not([disabled]) {
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0px var(--brutal-black);
+}
+
+.neo-btn:active:not([disabled]) {
+    transform: translate(2px, 2px);
+    box-shadow: 0px 0px 0px var(--brutal-black);
+}
+
+.neo-btn-primary {
+    background-color: var(--brand-yellow);
+}
+
+.neo-btn-white {
+    background-color: var(--brutal-white);
+}
+
+.neo-card {
+    background-color: var(--brutal-white);
+    border: var(--brutal-border) solid var(--brutal-black);
+    box-shadow: 8px 8px 0px var(--brutal-black);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.neo-input {
+    border: var(--brutal-border) solid var(--brutal-black);
+    padding: 0.75rem;
+    font-weight: 600;
+    width: 100%;
+    outline: none;
+}
+
+.neo-input:focus {
+    background-color: #fffdec;
+}
+
+/* Specific component overrides */
+.neo-nav-link {
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--brutal-black);
+    padding: 0.5rem 1rem;
+    border: 2px solid transparent;
+}
+
+.neo-nav-link:hover {
+    background: var(--brutal-white);
+    border: 2px solid var(--brutal-black);
+    box-shadow: 3px 3px 0px var(--brutal-black);
+}
+
+.neo-badge {
+    border: 2px solid var(--brutal-black);
+    padding: 0.2rem 0.6rem;
+    font-weight: 800;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    display: inline-block;
+}

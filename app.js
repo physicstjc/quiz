@@ -563,7 +563,7 @@ async function refreshTeacherDashboard() {
             snap.forEach(docSnap => {
                 const quiz = docSnap.data();
                 const card = document.createElement('div');
-                card.className = "group bg-white p-8 rounded-2xl shadow-sm border hover:shadow-xl hover:border-blue-400 transition-all flex flex-col justify-between cursor-pointer";
+                card.className = "group neo-card p-8 hover:transform hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[10px_10px_0px_#000] transition-all flex flex-col justify-between cursor-pointer";
                 
                 const assignedCount = quiz.assignedClasses ? quiz.assignedClasses.length : 0;
 
@@ -578,26 +578,35 @@ async function refreshTeacherDashboard() {
                 card.innerHTML = `
                 <div>
                     <div class="flex justify-between items-start mb-4">
-                        <h3 class="text-xl font-black tracking-tight leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">${quiz.title}</h3>
-                        <div class="bg-indigo-50 text-indigo-700 font-mono font-bold text-xs px-2 py-1 rounded border border-indigo-100 uppercase tracking-widest">${quiz.quizCode || 'NO CODE'}</div>
+                        <h3 class="text-xl md:text-2xl font-black tracking-tighter uppercase leading-tight group-hover:text-black transition-colors line-clamp-2">${quiz.title}</h3>
+                        <div class="neo-badge bg-[#FFEE99] text-black font-mono font-black text-xs px-2 py-1 uppercase tracking-widest">${quiz.quizCode || 'NO CODE'}</div>
                     </div>
-                    <p class="text-[10px] uppercase font-black tracking-widest text-gray-400 mb-6 italic">
-                        <ion-icon name="people-outline" class="translate-y-0.5 mr-1"></ion-icon>
-                        ${assignedCount > 0 ? `<span class="text-blue-600">${assignedCount} Classes Assigned</span>` : 'Not assigned to any class'}
+                    <p class="text-[10px] uppercase font-black tracking-widest text-gray-500 mb-6 italic flex items-center gap-1">
+                        <ion-icon name="people-outline" class="text-sm"></ion-icon>
+                        ${assignedCount > 0 ? `<span class="text-black underline">${assignedCount} Classes Assigned</span>` : 'Not assigned to any class'}
                     </p>
-                    <div class="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-1 rounded inline-block uppercase mb-6 tracking-widest">${quiz.questions.length} Questions</div>
+                    <div class="neo-badge bg-white text-black font-black px-2 py-1 mb-6 tracking-widest">${quiz.questions.length} Questions</div>
                 </div>
-                <div class="flex flex-wrap gap-2">
-                    <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Preview Quiz" onclick="previewQuiz('${docSnap.id}')">
-                        <ion-icon name="eye"></ion-icon>
+                <div class="flex flex-wrap gap-3">
+                    <button class="neo-btn neo-btn-white p-3 flex items-center justify-center" title="Preview Quiz" onclick="previewQuiz('${docSnap.id}')">
+                        <ion-icon name="eye" class="text-xl"></ion-icon>
                     </button>
-                    <button class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Edit Quiz" onclick="editQuiz('${docSnap.id}')">
-                        <ion-icon name="create-outline"></ion-icon>
+                    <button class="neo-btn neo-btn-white p-3 flex items-center justify-center" title="Edit Quiz" onclick="editQuiz('${docSnap.id}')">
+                        <ion-icon name="create-outline" class="text-xl"></ion-icon>
                     </button>
-                    <button class="bg-green-50 hover:bg-green-100 text-green-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Assign to Class" onclick="openAssignModal('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
-                        <ion-icon name="person-add"></ion-icon>
+                    <button class="neo-btn neo-btn-white p-3 flex items-center justify-center" title="Assign to Class" onclick="openAssignModal('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
+                        <ion-icon name="person-add" class="text-xl"></ion-icon>
                     </button>
-                    <button class="flex-grow bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 font-black" onclick="viewResults('${docSnap.id}')">
+                    <button class="flex-grow neo-btn neo-btn-primary py-3 flex items-center justify-center gap-2" onclick="viewResults('${docSnap.id}')">
+                        <ion-icon name="stats-chart"></ion-icon> Results
+                    </button>
+                    <button class="neo-btn bg-red-100 hover:bg-red-200 text-red-600 p-3 flex items-center justify-center" onclick="confirmDeleteQuiz('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
+                        <ion-icon name="trash" class="text-xl"></ion-icon>
+                    </button>
+                </div>
+            `;
+                teacherQuizList.appendChild(card);
+            });
                         <ion-icon name="stats-chart"></ion-icon> Results
                     </button>
                     <button class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" onclick="confirmDeleteQuiz('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
@@ -1290,11 +1299,13 @@ async function refreshStudentDashboard() {
         if (!isAssigned) return;
 
         const card = document.createElement('div');
-        card.className = "bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-all";
+        card.className = "neo-card p-8 flex flex-col justify-between hover:bg-[#fffdec] transition-colors";
         card.innerHTML = `
-            <h3 class="text-xl font-black mb-2">${qz.title}</h3>
-            <p class="text-sm text-gray-500 mb-6 italic line-clamp-1">${qz.description || "N/A"}</p>
-            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95" onclick="startQuiz('${d.id}')">
+            <div>
+                <h3 class="text-xl md:text-2xl font-black mb-2 uppercase tracking-tighter">${qz.title}</h3>
+                <p class="text-sm text-gray-700 mb-6 italic font-bold line-clamp-2">${qz.description || "N/A"}</p>
+            </div>
+            <button class="w-full neo-btn neo-btn-primary py-3" onclick="startQuiz('${d.id}')">
                 Begin Quiz
             </button>
         `;

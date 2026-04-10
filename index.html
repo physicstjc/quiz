@@ -15,22 +15,22 @@
     <!-- QRCode.js for invitation QR codes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans">
+<body class="bg-[#f7f7f7] text-black font-sans">
     
     <div id="app" class="min-h-screen flex flex-col">
         <!-- Navigation bar -->
-        <nav class="hidden bg-white shadow-sm border-b px-4 md:px-6 py-4 flex justify-between items-center" id="navbar">
+        <nav class="hidden neo-header px-4 md:px-6 py-4 flex justify-between items-center" id="navbar">
             <div class="flex items-center gap-2">
-                <span class="text-lg md:text-xl font-bold text-blue-600 leading-tight">PhysicsLens Quiz</span>
-                <span id="user-role-badge" class="hidden sm:inline-block text-[8px] md:text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-full uppercase font-bold tracking-widest invisible"></span>
+                <span class="text-xl md:text-2xl font-black text-black leading-tight tracking-tighter">PHYSICSLENS QUIZ</span>
+                <span id="user-role-badge" class="hidden sm:inline-block neo-badge bg-white invisible"></span>
             </div>
             <div class="flex items-center gap-3 md:gap-4">
                 <div class="text-right flex flex-col items-end max-w-[120px] md:max-w-none">
-                    <span id="nav-user-name" class="text-xs md:text-sm font-semibold truncate w-full"></span>
-                    <span id="nav-user-email" class="text-[10px] md:text-xs text-gray-500 truncate w-full"></span>
+                    <span id="nav-user-name" class="text-xs md:text-sm font-black uppercase truncate w-full"></span>
+                    <span id="nav-user-email" class="text-[10px] md:text-xs font-bold text-gray-700 truncate w-full"></span>
                 </div>
-                <button id="logout-btn" class="p-1 md:p-2 text-gray-500 hover:text-red-600 transition-colors">
-                    <ion-icon name="log-out-outline" class="text-2xl md:text-3xl"></ion-icon>
+                <button id="logout-btn" class="neo-btn neo-btn-white p-1 md:p-2 border-2 shadow-[2px_2px_0px_#000]">
+                    <ion-icon name="log-out-outline" class="text-xl md:text-2xl"></ion-icon>
                 </button>
             </div>
         </nav>
@@ -39,13 +39,13 @@
         <main class="flex-grow flex items-center justify-center p-4 md:p-6" id="main-content">
             <!-- Login View -->
             <div id="view-login" class="max-w-md w-full flex flex-col gap-6">
-                <div class="bg-blue-600 p-6 md:p-10 rounded-2xl shadow-xl border border-blue-500 text-white text-center">
-                    <h2 class="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight">Student Access</h2>
-                    <p class="text-blue-100 text-sm md:text-base mb-8">Enter your email to start the quiz.</p>
+                <div class="neo-card bg-[#FFEE99] p-6 md:p-10 text-center">
+                    <h2 class="text-3xl md:text-4xl font-black mb-2 tracking-tighter uppercase">Student Access</h2>
+                    <p class="text-black font-bold text-sm md:text-base mb-8 italic">Enter your email to start the quiz.</p>
                     
-                    <div class="space-y-4">
-                        <input type="email" id="student-email-login" placeholder="yourname@students.edu.sg" class="w-full p-4 rounded-xl text-gray-900 font-bold outline-none focus:ring-4 focus:ring-blue-300 transition-all text-center">
-                        <button id="student-access-btn" class="w-full bg-white text-blue-600 font-black py-4 px-6 rounded-xl hover:bg-gray-100 transition-all active:scale-95 shadow-lg">START AS STUDENT</button>
+                    <div class="space-y-6">
+                        <input type="email" id="student-email-login" placeholder="yourname@students.edu.sg" class="neo-input text-lg text-center font-black">
+                        <button id="student-access-btn" class="w-full neo-btn neo-btn-white py-4 text-lg">START AS STUDENT</button>
                     </div>
                 </div>
             </div>
@@ -53,47 +53,47 @@
             <!-- Student Dashboard View -->
             <div id="view-student" class="hidden w-full max-w-5xl">
                 <div class="mb-6 md:mb-10">
-                    <h2 class="text-2xl md:text-3xl font-black mb-1 md:mb-2 tracking-tight">Student Dashboard</h2>
-                    <p class="text-xs md:text-sm text-gray-500">Available quizzes and your progress.</p>
+                    <h2 class="text-4xl md:text-5xl font-black mb-1 md:mb-2 tracking-tighter uppercase">Student Dashboard</h2>
+                    <p class="text-sm md:text-base font-bold text-gray-700">Available quizzes and your progress.</p>
                 </div>
                 
                 <section class="mb-8 md:mb-12">
-                    <h3 class="text-sm md:text-lg font-bold uppercase tracking-widest text-blue-600 mb-4 md:mb-6 flex items-center gap-2">
+                    <h3 class="text-lg md:text-xl font-black uppercase tracking-tighter mb-4 md:mb-6 flex items-center gap-2">
                         <ion-icon name="book-outline"></ion-icon> Join a Quiz
                     </h3>
                     
                     <!-- Join Quiz by Code -->
-                    <div class="bg-blue-600 p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-xl border border-blue-500 text-white mb-8">
-                        <h4 class="text-lg md:text-xl font-black mb-4 tracking-tight">Have a Quiz Code?</h4>
-                        <div class="flex flex-col sm:flex-row gap-3 md:gap-4">
-                            <input type="text" id="join-quiz-code-input" placeholder="ABC123" class="flex-grow p-3 md:p-4 rounded-xl text-gray-900 font-mono font-bold uppercase tracking-widest outline-none focus:ring-4 focus:ring-blue-300 transition-all text-center sm:text-left">
-                            <button id="join-quiz-btn" class="bg-white text-blue-600 font-black px-8 md:px-10 py-3 md:py-4 rounded-xl hover:bg-gray-100 transition-all active:scale-95 shadow-lg">JOIN</button>
+                    <div class="neo-card bg-[#FFEE99] p-6 md:p-8 mb-8">
+                        <h4 class="text-xl md:text-2xl font-black mb-4 tracking-tighter uppercase">Have a Quiz Code?</h4>
+                        <div class="flex flex-col sm:row gap-3 md:gap-4">
+                            <input type="text" id="join-quiz-code-input" placeholder="ABC123" class="neo-input flex-grow font-mono uppercase tracking-widest text-center sm:text-left">
+                            <button id="join-quiz-btn" class="neo-btn neo-btn-white px-8 md:px-10 py-3 md:py-4">JOIN</button>
                         </div>
-                        <p id="join-error" class="hidden mt-4 text-white bg-red-500/30 p-3 rounded-lg text-xs md:text-sm font-bold border border-red-500/50"></p>
+                        <p id="join-error" class="hidden mt-4 bg-red-100 p-3 neo-brutal text-red-700 text-xs md:text-sm font-black"></p>
                     </div>
 
-                    <h3 class="text-sm md:text-lg font-bold uppercase tracking-widest text-blue-600 mb-4 md:mb-6 flex items-center gap-2">
+                    <h3 class="text-lg md:text-xl font-black uppercase tracking-tighter mb-4 md:mb-6 flex items-center gap-2">
                         <ion-icon name="list-outline"></ion-icon> Available Quizzes
                     </h3>
-                    <div id="student-quiz-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    <div id="student-quiz-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         <!-- Quizzes populated by JS -->
                     </div>
                 </section>
 
                 <section>
-                    <h3 class="text-sm md:text-lg font-bold uppercase tracking-widest text-green-600 mb-4 md:mb-6 flex items-center gap-2">
+                    <h3 class="text-lg md:text-xl font-black uppercase tracking-tighter mb-4 md:mb-6 flex items-center gap-2 text-black">
                         <ion-icon name="time-outline"></ion-icon> Past Attempts
                     </h3>
-                    <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border overflow-x-auto">
+                    <div class="neo-brutal bg-white overflow-x-auto">
                         <table class="w-full text-left min-w-[300px]">
-                            <thead class="bg-gray-50 text-[10px] md:text-xs text-gray-400 font-bold uppercase border-b">
+                            <thead class="bg-gray-100 border-b-2 border-black text-xs md:text-sm font-black uppercase">
                                 <tr>
-                                    <th class="px-4 md:px-6 py-3 md:py-4">Quiz Title</th>
-                                    <th class="px-4 md:px-6 py-3 md:py-4">Score</th>
-                                    <th class="px-4 md:px-6 py-3 md:py-4">Date</th>
+                                    <th class="px-4 md:px-6 py-4">Quiz Title</th>
+                                    <th class="px-4 md:px-6 py-4">Score</th>
+                                    <th class="px-4 md:px-6 py-4">Date</th>
                                 </tr>
                             </thead>
-                            <tbody id="student-attempts-table" class="divide-y divide-gray-100 italic">
+                            <tbody id="student-attempts-table" class="divide-y-2 divide-black font-bold italic">
                                 <!-- Attempts populated by JS -->
                             </tbody>
                         </table>
@@ -103,44 +103,44 @@
 
             <!-- Teacher Dashboard View -->
             <div id="view-teacher" class="hidden w-full max-w-5xl">
-                <div class="flex justify-between items-center mb-10">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                     <div>
-                        <h2 class="text-3xl font-black mb-2 tracking-tight">Teacher Console</h2>
-                        <p class="text-gray-500">Create quizzes and track student progress.</p>
+                        <h2 class="text-4xl md:text-5xl font-black mb-2 tracking-tighter uppercase">Teacher Console</h2>
+                        <p class="text-gray-700 font-bold">Create quizzes and track student progress.</p>
                     </div>
-                    <div class="flex gap-3">
-                        <button id="manage-students-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all active:scale-95">
+                    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                        <button id="manage-students-btn" class="neo-btn neo-btn-white flex items-center gap-2">
                             <ion-icon name="people"></ion-icon> Manage Students
                         </button>
-                        <button id="add-quiz-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all shadow-lg active:scale-95">
+                        <button id="add-quiz-btn" class="neo-btn neo-btn-primary flex items-center gap-2">
                             <ion-icon name="add-circle"></ion-icon> Create New Quiz
                         </button>
                     </div>
                 </div>
 
-                <div id="teacher-quiz-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="teacher-quiz-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                     <!-- Managed quizzes populated by JS -->
                 </div>
             </div>
 
             <!-- New Quiz Builder View -->
-            <div id="view-quiz-builder" class="hidden w-full max-w-3xl bg-white rounded-3xl shadow-xl border p-10">
-                <div class="flex items-center gap-4 mb-10 text-blue-600 hover:text-blue-700 cursor-pointer" id="back-to-teacher">
+            <div id="view-quiz-builder" class="hidden w-full max-w-3xl neo-card p-6 md:p-10">
+                <div class="flex items-center gap-4 mb-10 text-black hover:opacity-70 cursor-pointer" id="back-to-teacher">
                     <ion-icon name="arrow-back-outline" size="large"></ion-icon>
-                    <span class="font-bold">Back to Dashboard</span>
+                    <span class="font-black uppercase tracking-tighter">Back to Dashboard</span>
                 </div>
                 
-                <h2 class="text-3xl font-black mb-1 tracking-tight">New Quiz</h2>
-                <p class="text-gray-500 mb-8 font-medium">Add questions, images, and LaTeX content.</p>
+                <h2 class="text-3xl md:text-4xl font-black mb-1 tracking-tighter uppercase">New Quiz</h2>
+                <p class="text-gray-700 font-bold mb-8 italic text-sm md:text-base">Add questions, images, and LaTeX content.</p>
 
-                <div class="space-y-6 mb-10">
+                <div class="gap-8 flex flex-col mb-10">
                     <div>
-                        <label class="block text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Title</label>
-                        <input type="text" id="quiz-title-input" class="w-full text-2xl font-bold border-b-4 border-gray-100 focus:border-blue-500 outline-none pb-2 transition-colors" placeholder="e.g. Mechanics Foundations">
+                        <label class="block text-xs font-black text-gray-600 uppercase tracking-widest mb-3">Quiz Title</label>
+                        <input type="text" id="quiz-title-input" class="neo-input text-xl md:text-2xl font-black" placeholder="e.g. Mechanics Foundations">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Description</label>
-                        <textarea id="quiz-desc-input" class="w-full bg-gray-50 border p-4 rounded-xl outline-none focus:ring-2 focus:ring-blue-100" placeholder="Optional summary..."></textarea>
+                        <label class="block text-xs font-black text-gray-600 uppercase tracking-widest mb-3">Description</label>
+                        <textarea id="quiz-desc-input" class="neo-input min-h-[100px] font-bold" placeholder="Optional summary..."></textarea>
                     </div>
                 </div>
 

@@ -608,7 +608,7 @@ async function refreshTeacherDashboard() {
                 teacherQuizList.appendChild(card);
             });
                         <ion-icon name="stats-chart"></ion-icon> Results
-                    </button>
+                    
                     <button class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" onclick="confirmDeleteQuiz('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
                         <ion-icon name="trash"></ion-icon>
                     </button>

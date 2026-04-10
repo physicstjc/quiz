@@ -1346,6 +1346,13 @@ window.viewAttemptDetail = async (attemptId) => {
         // Setup retake button
         const retakeBtn = document.getElementById('retake-quiz-btn');
         retakeBtn.onclick = () => startQuiz(att.quizId);
+        
+        // Hide retake button if quiz doesn't allow retakes
+        if (quiz.allowRetakes) {
+            retakeBtn.classList.remove('hidden');
+        } else {
+            retakeBtn.classList.add('hidden');
+        }
 
         container.innerHTML = "";
         quiz.questions.forEach((q, qIdx) => {

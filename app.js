@@ -82,14 +82,12 @@ function handleUserData(user) {
     if (email.endsWith('@moe.edu.sg')) {
         userRole = 'teacher';
         userRoleBadge.innerText = 'TEACHER';
-        userRoleBadge.classList.replace('bg-blue-100', 'bg-purple-100');
-        userRoleBadge.classList.replace('text-blue-700', 'text-purple-700');
+        userRoleBadge.className = 'neo-badge neo-badge-teacher';
     } else {
         // For students or others who signed in via Google
         userRole = 'student';
         userRoleBadge.innerText = 'STUDENT';
-        userRoleBadge.classList.replace('bg-purple-100', 'bg-blue-100');
-        userRoleBadge.classList.replace('text-purple-700', 'text-blue-700');
+        userRoleBadge.className = 'neo-badge neo-badge-student';
     }
 
     currentUser = user;
@@ -122,8 +120,7 @@ function handleUserData(user) {
 function handleStudentLogin(email, name) {
     userRole = 'student';
     userRoleBadge.innerText = 'STUDENT';
-    userRoleBadge.classList.replace('bg-purple-100', 'bg-blue-100');
-    userRoleBadge.classList.replace('text-purple-700', 'text-blue-700');
+    userRoleBadge.className = 'neo-badge neo-badge-student';
     
     currentUser = { email: email, displayName: name };
     navUserName.innerText = name;
@@ -1522,14 +1519,14 @@ function renderQuizQuestion() {
         
         const btn = document.createElement('button');
         btn.id = `opt-${i}`;
-        btn.className = `w-full text-left p-4 md:p-6 rounded-2xl border-2 transition-all flex items-start gap-4 ${studentAnswers[currentQIdx] === i ? 'border-blue-600 bg-blue-50 text-blue-800 ring-4 ring-blue-50 shadow-sm font-black' : 'border-gray-100 hover:bg-gray-50 text-gray-600 font-medium'}`;
+        btn.className = `option-btn w-full text-left p-6 flex items-start gap-4 ${studentAnswers[currentQIdx] === i ? 'selected' : ''}`;
         
         btn.innerHTML = `
-            <div class="w-8 h-8 rounded-full border-2 flex-shrink-0 flex items-center justify-center font-bold text-sm mt-0.5 ${studentAnswers[currentQIdx] === i ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-200'}">
+            <div class="w-8 h-8 rounded-full border-2 border-black flex-shrink-0 flex items-center justify-center font-bold text-sm mt-0.5 ${studentAnswers[currentQIdx] === i ? 'bg-black text-white' : 'bg-white text-black'}">
                 ${String.fromCharCode(65 + i)}
             </div>
             <div class="flex-1 space-y-3">
-                ${hasImage ? `<img src="${q.optionImages[i]}" class="w-full max-h-48 object-contain rounded-lg border bg-white">` : ''}
+                ${hasImage ? `<img src="${q.optionImages[i]}" class="w-full max-h-48 object-contain rounded-lg border-2 border-black bg-white shadow-[2px_2px_0px_black]">` : ''}
                 ${hasText ? `<span class="block">${opt}</span>` : (!hasImage ? `<span class="text-gray-300 italic">Empty option</span>` : '')}
             </div>
         `;
@@ -1540,7 +1537,13 @@ function renderQuizQuestion() {
         optionsTarget.appendChild(btn);
     });
 
-    dotsTarget.innerHTML = activeQuiz.questions.map((_, i) => `<div class="w-2 h-2 rounded-full ${i === currentQIdx ? 'bg-blue-600' : studentAnswers[i] !== null ? 'bg-green-400' : 'bg-gray-200'}"></div>`).join('');
+    const dotsTarget = document.getElementById('progress-dots');
+    dotsTarget.innerHTML = activeQuiz.questions.map((_, i) => {
+        let state = 'progress-dot';
+        if (i === currentQIdx) state += ' active';
+        else if (studentAnswers[i] !== null) state += ' answered';
+        return `<div class="${state} inline-block mx-1"></div>`;
+    }).join('');
 
     if (currentQIdx === activeQuiz.questions.length - 1) {
         nextBtn.innerHTML = `<span>Finish Quiz</span> <ion-icon name="send-outline"></ion-icon>`;

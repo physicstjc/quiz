@@ -61,6 +61,10 @@ body {
     background-color: var(--brand-yellow);
 }
 
+.neo-btn-secondary {
+    background-color: #f7f7f7;
+}
+
 .neo-btn-white {
     background-color: var(--brutal-white);
 }
@@ -71,6 +75,48 @@ body {
     box-shadow: 8px 8px 0px var(--brutal-black);
     padding: 1.5rem;
     margin-bottom: 2rem;
+}
+
+.neo-badge-student {
+    background-color: #3b82f6;
+    color: white;
+    border: 2px solid var(--brutal-black);
+}
+
+.neo-badge-teacher {
+    background-color: #a855f7;
+    color: white;
+    border: 2px solid var(--brutal-black);
+}
+
+.option-btn {
+    border: var(--brutal-border) solid var(--brutal-black);
+    box-shadow: 4px 4px 0px var(--brutal-black);
+    background-color: var(--brutal-white);
+    transition: all 0.1s;
+    font-weight: 700;
+}
+
+.option-btn.selected {
+    background-color: var(--brand-yellow);
+    transform: translate(2px, 2px);
+    box-shadow: 0px 0px 0px var(--brutal-black);
+}
+
+.progress-dot {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--brutal-black);
+    background-color: var(--brutal-white);
+}
+
+.progress-dot.active {
+    background-color: var(--brand-yellow);
+    transform: scale(1.2);
+}
+
+.progress-dot.answered {
+    background-color: var(--brutal-black);
 }
 
 .neo-input {

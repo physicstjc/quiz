@@ -597,20 +597,6 @@ async function refreshTeacherDashboard() {
                     <button class="neo-btn neo-btn-white p-3 flex items-center justify-center" title="Assign to Class" onclick="openAssignModal('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
                         <ion-icon name="person-add" class="text-xl"></ion-icon>
                     </button>
-                    <button class="flex-grow neo-btn neo-btn-primary py-3 flex items-center justify-center gap-2" onclick="viewResults('${docSnap.id}')">
-                        <ion-icon name="stats-chart"></ion-icon> Results
-                    </button>
-                    <button class="neo-btn bg-red-100 hover:bg-red-200 text-red-600 p-3 flex items-center justify-center" onclick="confirmDeleteQuiz('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
-                        <ion-icon name="trash" class="text-xl"></ion-icon>
-                    </button>
-                </div>
-            `;
-                teacherQuizList.appendChild(card);
-            });
-                        <ion-icon name="stats-chart"></ion-icon> Results
-                    
-                    <button class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" onclick="confirmDeleteQuiz('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
-                        <ion-icon name="trash"></ion-icon>
                     </button>
                 </div>
             `;

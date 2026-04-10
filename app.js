@@ -476,7 +476,7 @@ async function refreshTeacherDashboard() {
     console.log("Refreshing Teacher Dashboard...");
     teacherQuizList.innerHTML = `<div class="p-10 text-gray-400 font-bold">Loading quizzes...</div>`;
     try {
-        const q = query(collection(db, "quizzes"), where("teacherId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+        const q = query(collection(db, "quizzes"), where("teacherId", "==", currentUser?.uid || ""), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         
         teacherQuizList.innerHTML = "";
@@ -1193,7 +1193,8 @@ async function refreshStudentDashboard() {
         studentQuizList.appendChild(card);
     });
 
-    const attSnap = await getDocs(query(collection(db, "quiz_attempts"), where("studentId", "==", currentUser.uid), orderBy("submittedAt", "desc")));
+    const studentIdentifier = currentUser.uid || currentUser.email.toLowerCase();
+    const attSnap = await getDocs(query(collection(db, "quiz_attempts"), where("studentId", "==", studentIdentifier), orderBy("submittedAt", "desc")));
     studentAttemptsTable.innerHTML = "";
     attSnap.forEach(d => {
         const att = d.data();

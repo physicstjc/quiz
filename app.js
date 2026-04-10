@@ -36,16 +36,18 @@ const navUserEmail = document.getElementById('nav-user-email');
 const userRoleBadge = document.getElementById('user-role-badge');
 const logoutBtn = document.getElementById('logout-btn');
 const errorMessage = document.getElementById('error-message');
-const loginGoogleBtn = document.getElementById('login-google-btn');
 const studentEmailLogin = document.getElementById('student-email-login');
 const studentAccessBtn = document.getElementById('student-access-btn');
 
 // Show View helper
 function showView(viewName) {
-    Object.values(views).forEach(v => {
-        if (v) v.classList.add('hidden');
-    });
-    if (views[viewName]) views[viewName].classList.remove('hidden');
+    const v = views[viewName];
+    if (v) {
+        Object.values(views).forEach(v => {
+            if (v) v.classList.add('hidden');
+        });
+        v.classList.remove('hidden');
+    }
     
     // Manage Navbar visibility
     if (viewName === 'login') {
@@ -167,13 +169,13 @@ function handleAutoJoin() {
 }
 
 function showError(msg) {
-    errorMessage.innerText = msg;
-    errorMessage.classList.remove('hidden');
+    if (errorMessage) {
+        errorMessage.innerText = msg;
+        errorMessage.classList.remove('hidden');
+    } else {
+        alert(msg);
+    }
 }
-
-loginGoogleBtn.onclick = () => {
-    signInWithPopup(auth, googleProvider).catch(err => showError(err.message));
-};
 
 studentAccessBtn.onclick = async () => {
     const email = studentEmailLogin.value.trim().toLowerCase();

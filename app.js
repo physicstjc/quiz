@@ -222,6 +222,81 @@ logoutBtn.onclick = () => {
 // ----------------------------------------------------
 let qrcodeInstance = null;
 
+let currentAssignQuizId = null;
+
+window.openAssignModal = async (quizId, title) => {
+    currentAssignQuizId = quizId;
+    document.getElementById('assign-quiz-title').innerText = title;
+    
+    const assignModal = document.getElementById('modal-assign-quiz');
+    const classListContainer = document.getElementById('assign-class-list');
+    
+    classListContainer.innerHTML = "<p class='text-gray-400 italic text-xs col-span-2'>Loading classes...</p>";
+    assignModal.classList.remove('hidden');
+
+    try {
+        // Fetch existing classes from student list
+        const snap = await getDocs(collection(db, "students"));
+        const classes = new Set();
+        snap.forEach(d => {
+            if (d.data().class) classes.add(d.data().class);
+        });
+
+        // Get current quiz assignment
+        const quizDoc = await getDoc(doc(db, "quizzes", quizId));
+        const currentAssigned = quizDoc.data().assignedClasses || [];
+
+        classListContainer.innerHTML = "";
+        Array.from(classes).sort().forEach(className => {
+            const isChecked = currentAssigned.includes(className);
+            const label = document.createElement('label');
+            label.className = `flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${isChecked ? 'border-blue-600 bg-blue-50' : 'border-gray-50 bg-gray-50 hover:bg-white hover:border-blue-200'}`;
+            label.innerHTML = `
+                <input type="checkbox" value="${className}" class="class-assign-checkbox w-4 h-4 rounded border-gray-300 text-blue-600" ${isChecked ? 'checked' : ''}>
+                <span class="text-sm font-black text-gray-700">${className}</span>
+            `;
+            classListContainer.appendChild(label);
+        });
+        
+        if (classes.size === 0) {
+            classListContainer.innerHTML = "<p class='text-red-500 italic text-xs col-span-2'>No classes found. Upload students first.</p>";
+        }
+
+    } catch (err) {
+        classListContainer.innerHTML = "<p class='text-red-500 text-xs'>Error: " + err.message + "</p>";
+    }
+};
+
+document.getElementById('close-assign-modal').onclick = () => {
+    document.getElementById('modal-assign-quiz').classList.add('hidden');
+    currentAssignQuizId = null;
+};
+
+document.getElementById('save-assignment-btn').onclick = async () => {
+    if (!currentAssignQuizId) return;
+    
+    const checkboxes = document.querySelectorAll('.class-assign-checkbox:checked');
+    const selectedClasses = Array.from(checkboxes).map(cb => cb.value);
+    
+    const saveBtn = document.getElementById('save-assignment-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerText = "Saving...";
+
+    try {
+        await updateDoc(doc(db, "quizzes", currentAssignQuizId), {
+            assignedClasses: selectedClasses,
+            updatedAt: serverTimestamp()
+        });
+        document.getElementById('modal-assign-quiz').classList.add('hidden');
+        refreshTeacherDashboard();
+    } catch (err) {
+        alert("Error saving assignment: " + err.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Update Assignment";
+    }
+};
+
 function showShareModal(code) {
     const baseUrl = window.location.origin + window.location.pathname;
     const shareUrl = `${baseUrl}?code=${code}`;
@@ -488,8 +563,10 @@ async function refreshTeacherDashboard() {
             snap.forEach(docSnap => {
                 const quiz = docSnap.data();
                 const card = document.createElement('div');
-                card.className = "group bg-white p-8 rounded-2xl shadow-sm border hover:shadow-xl hover:border-blue-400 hover:-translate-y-1 transition-all flex flex-col justify-between cursor-pointer";
+                card.className = "group bg-white p-8 rounded-2xl shadow-sm border hover:shadow-xl hover:border-blue-400 transition-all flex flex-col justify-between cursor-pointer";
                 
+                const assignedCount = quiz.assignedClasses ? quiz.assignedClasses.length : 0;
+
                 // Clicking the card area itself triggers the Share Share Modal
                 card.onclick = (e) => {
                     const btnActions = e.target.closest('button');
@@ -501,18 +578,24 @@ async function refreshTeacherDashboard() {
                 card.innerHTML = `
                 <div>
                     <div class="flex justify-between items-start mb-4">
-                        <h3 class="text-xl font-black tracking-tight leading-tight group-hover:text-blue-600 transition-colors">${quiz.title}</h3>
+                        <h3 class="text-xl font-black tracking-tight leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">${quiz.title}</h3>
                         <div class="bg-indigo-50 text-indigo-700 font-mono font-bold text-xs px-2 py-1 rounded border border-indigo-100 uppercase tracking-widest">${quiz.quizCode || 'NO CODE'}</div>
                     </div>
-                    <p class="text-sm text-gray-500 mb-6 italic line-clamp-2">${quiz.description || "No description."}</p>
+                    <p class="text-[10px] uppercase font-black tracking-widest text-gray-400 mb-6 italic">
+                        <ion-icon name="people-outline" class="translate-y-0.5 mr-1"></ion-icon>
+                        ${assignedCount > 0 ? `<span class="text-blue-600">${assignedCount} Classes Assigned</span>` : 'Not assigned to any class'}
+                    </p>
                     <div class="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-1 rounded inline-block uppercase mb-6 tracking-widest">${quiz.questions.length} Questions</div>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
                     <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Preview Quiz" onclick="previewQuiz('${docSnap.id}')">
                         <ion-icon name="eye"></ion-icon>
                     </button>
                     <button class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Edit Quiz" onclick="editQuiz('${docSnap.id}')">
                         <ion-icon name="create-outline"></ion-icon>
+                    </button>
+                    <button class="bg-green-50 hover:bg-green-100 text-green-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center font-black" title="Assign to Class" onclick="openAssignModal('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
+                        <ion-icon name="person-add"></ion-icon>
                     </button>
                     <button class="flex-grow bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 font-black" onclick="viewResults('${docSnap.id}')">
                         <ion-icon name="stats-chart"></ion-icon> Results
@@ -1176,11 +1259,29 @@ joinQuizBtn.onclick = async () => {
 };
 async function refreshStudentDashboard() {
     studentQuizList.innerHTML = `<div class="p-10 text-gray-400 font-bold">Loading...</div>`;
+    
+    // Get student's class
+    let studentClass = null;
+    try {
+        const studentIdentifier = currentUser.uid || currentUser.email.toLowerCase();
+        const studentDoc = await getDoc(doc(db, "students", studentIdentifier));
+        if (studentDoc.exists()) {
+            studentClass = studentDoc.data().class;
+        }
+    } catch (e) {
+        console.error("Error fetching student class:", e);
+    }
+
     const qzSnap = await getDocs(query(collection(db, "quizzes"), orderBy("createdAt", "desc")));
     
     studentQuizList.innerHTML = "";
     qzSnap.forEach(d => {
         const qz = d.data();
+        
+        // Only show if assigned to student's class
+        const isAssigned = qz.assignedClasses && studentClass && qz.assignedClasses.includes(studentClass);
+        if (!isAssigned) return;
+
         const card = document.createElement('div');
         card.className = "bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-all";
         card.innerHTML = `
@@ -1192,6 +1293,10 @@ async function refreshStudentDashboard() {
         `;
         studentQuizList.appendChild(card);
     });
+
+    if (studentQuizList.innerHTML === "") {
+        studentQuizList.innerHTML = `<div class="p-10 text-gray-400 font-medium col-span-full text-center bg-gray-50 rounded-2xl border-2 border-dashed">No quizzes are currently assigned to your class (${studentClass || 'unknown'}).</div>`;
+    }
 
     const studentIdentifier = currentUser.uid || currentUser.email.toLowerCase();
     const attSnap = await getDocs(query(collection(db, "quiz_attempts"), where("studentId", "==", studentIdentifier), orderBy("submittedAt", "desc")));

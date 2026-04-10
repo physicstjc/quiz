@@ -579,7 +579,7 @@ async function refreshTeacherDashboard() {
                 <div>
                     <div class="flex justify-between items-start mb-4">
                         <h3 class="text-xl md:text-2xl font-black tracking-tighter uppercase leading-tight group-hover:text-black transition-colors line-clamp-2">${quiz.title}</h3>
-                        <div class="neo-badge bg-[#FFEE99] text-black font-mono font-black text-xs px-2 py-1 uppercase tracking-widest">${quiz.quizCode || 'NO CODE'}</div>
+                        <div class="neo-badge bg-[#ffe030] text-black font-mono font-black text-xs px-2 py-1 uppercase tracking-widest">${quiz.quizCode || 'NO CODE'}</div>
                     </div>
                     <p class="text-[10px] uppercase font-black tracking-widest text-gray-500 mb-6 italic flex items-center gap-1">
                         <ion-icon name="people-outline" class="text-sm"></ion-icon>

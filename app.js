@@ -1537,7 +1537,6 @@ function renderQuizQuestion() {
         optionsTarget.appendChild(btn);
     });
 
-    const dotsTarget = document.getElementById('progress-dots');
     dotsTarget.innerHTML = activeQuiz.questions.map((_, i) => {
         let state = 'progress-dot';
         if (i === currentQIdx) state += ' active';

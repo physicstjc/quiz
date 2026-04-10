@@ -190,17 +190,23 @@ studentAccessBtn.onclick = async () => {
 
     try {
         // Verify student exists in the pre-populated list
+        console.log("Searching for student email in Firestore:", email);
         const studentDoc = await getDoc(doc(db, "students", email));
+        console.log("Student doc search result - exists:", studentDoc.exists());
+        
         if (!studentDoc.exists()) {
+            console.warn("Student email not found in Firestore 'students' collection:", email);
             showError("Your email was not found in the student list. Please contact your teacher.");
             return;
         }
 
         const studentData = studentDoc.data();
+        console.log("Student data retrieved:", studentData);
         sessionStorage.setItem('studentEmail', email);
         sessionStorage.setItem('studentName', studentData.name || 'Student');
         handleStudentLogin(email, studentData.name || 'Student');
     } catch (err) {
+        console.error("Firestore verification error:", err);
         showError("An error occurred during verification. Please try again.");
     }
 };

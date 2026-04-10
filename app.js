@@ -37,11 +37,15 @@ const userRoleBadge = document.getElementById('user-role-badge');
 const logoutBtn = document.getElementById('logout-btn');
 const errorMessage = document.getElementById('error-message');
 const loginGoogleBtn = document.getElementById('login-google-btn');
+const studentEmailLogin = document.getElementById('student-email-login');
+const studentAccessBtn = document.getElementById('student-access-btn');
 
 // Show View helper
 function showView(viewName) {
-    Object.values(views).forEach(v => v.classList.add('hidden'));
-    views[viewName].classList.remove('hidden');
+    Object.values(views).forEach(v => {
+        if (v) v.classList.add('hidden');
+    });
+    if (views[viewName]) views[viewName].classList.remove('hidden');
     
     // Manage Navbar visibility
     if (viewName === 'login') {
@@ -55,78 +59,112 @@ function showView(viewName) {
 onAuthStateChanged(auth, (user) => {
     console.log("Auth state changed:", user);
     if (user) {
-        const email = user.email;
-        console.log("Logged in with email:", email);
-        if (email.endsWith('@moe.edu.sg')) {
-            userRole = 'teacher';
-            userRoleBadge.innerText = 'TEACHER';
-            userRoleBadge.classList.replace('bg-blue-100', 'bg-purple-100');
-            userRoleBadge.classList.replace('text-blue-700', 'text-purple-700');
-        } else if (email.endsWith('@students.edu.sg')) {
-            userRole = 'student';
-            userRoleBadge.innerText = 'STUDENT';
-            userRoleBadge.classList.replace('bg-purple-100', 'bg-blue-100');
-            userRoleBadge.classList.replace('text-purple-700', 'text-blue-700');
-        } else {
-            // Unauthorized domain
-            signOut(auth);
-            showError("Your email domain is not authorized. Use @moe.edu.sg or @students.edu.sg.");
-            return;
-        }
-
-        currentUser = user;
-        navUserName.innerText = user.displayName;
-        navUserEmail.innerText = email;
-        userRoleBadge.classList.remove('invisible');
-
-        // Check if user is in prepopulated list to use their full name
-        const emailLower = email.toLowerCase();
-        getDoc(doc(db, "students", emailLower)).then(studentDoc => {
-            console.log("Checking student name for:", emailLower);
-            if (studentDoc.exists()) {
-                console.log("Found student name:", studentDoc.data().name);
-                navUserName.innerText = studentDoc.data().name;
-            } else {
-                console.log("Student not found in list, using Google name.");
-            }
-        });
-        
-        if (userRole === 'teacher') {
-            showView('teacher');
-            refreshTeacherDashboard();
-        } else {
-            showView('student');
-            refreshStudentDashboard();
-
-            // Auto-join quiz if code is in URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const quizCode = urlParams.get('code');
-            if (quizCode) {
-                console.log("Auto-joining quiz with code:", quizCode);
-                joinQuizBtn.disabled = true;
-                joinQuizBtn.innerText = "JOINING...";
-                
-                const q = query(collection(db, "quizzes"), where("quizCode", "==", quizCode.toUpperCase()));
-                getDocs(q).then(snap => {
-                    if (!snap.empty) {
-                        const docSnap = snap.docs[0];
-                        // Clear the URL parameter so it doesn't re-trigger on refresh
-                        const newUrl = window.location.origin + window.location.pathname;
-                        window.history.replaceState({}, document.title, newUrl);
-                        startQuiz(docSnap.id, docSnap.data());
-                    }
-                }).finally(() => {
-                    joinQuizBtn.disabled = false;
-                    joinQuizBtn.innerText = "JOIN";
-                });
-            }
-        }
+        handleUserData(user);
     } else {
-        currentUser = null;
-        userRole = null;
-        showView('login');
+        // Check if there's a stored session email for students
+        const savedEmail = sessionStorage.getItem('studentEmail');
+        const savedName = sessionStorage.getItem('studentName');
+        if (savedEmail) {
+            handleStudentLogin(savedEmail, savedName || 'Student');
+        } else {
+            currentUser = null;
+            userRole = null;
+            showView('login');
+        }
     }
 });
+
+function handleUserData(user) {
+    const email = user.email;
+    console.log("Logged in with email:", email);
+    if (email.endsWith('@moe.edu.sg')) {
+        userRole = 'teacher';
+        userRoleBadge.innerText = 'TEACHER';
+        userRoleBadge.classList.replace('bg-blue-100', 'bg-purple-100');
+        userRoleBadge.classList.replace('text-blue-700', 'text-purple-700');
+    } else {
+        // For students or others who signed in via Google
+        userRole = 'student';
+        userRoleBadge.innerText = 'STUDENT';
+        userRoleBadge.classList.replace('bg-purple-100', 'bg-blue-100');
+        userRoleBadge.classList.replace('text-purple-700', 'text-blue-700');
+    }
+
+    currentUser = user;
+    navUserName.innerText = user.displayName;
+    navUserEmail.innerText = email;
+    userRoleBadge.classList.remove('invisible');
+
+    // Check if user is in prepopulated list to use their full name
+    const emailLower = email.toLowerCase();
+    getDoc(doc(db, "students", emailLower)).then(studentDoc => {
+        console.log("Checking student name for:", emailLower);
+        if (studentDoc.exists()) {
+            console.log("Found student name:", studentDoc.data().name);
+            navUserName.innerText = studentDoc.data().name;
+        } else {
+            console.log("Student not found in list, using current name.");
+        }
+    });
+    
+    if (userRole === 'teacher') {
+        showView('teacher');
+        refreshTeacherDashboard();
+    } else {
+        showView('student');
+        refreshStudentDashboard();
+        handleAutoJoin();
+    }
+}
+
+function handleStudentLogin(email, name) {
+    userRole = 'student';
+    userRoleBadge.innerText = 'STUDENT';
+    userRoleBadge.classList.replace('bg-purple-100', 'bg-blue-100');
+    userRoleBadge.classList.replace('text-purple-700', 'text-blue-700');
+    
+    currentUser = { email: email, displayName: name };
+    navUserName.innerText = name;
+    navUserEmail.innerText = email;
+    userRoleBadge.classList.remove('invisible');
+
+    // Check pre-populated student record for fuller name
+    const emailLower = email.toLowerCase();
+    getDoc(doc(db, "students", emailLower)).then(studentDoc => {
+        if (studentDoc.exists()) {
+            navUserName.innerText = studentDoc.data().name;
+            sessionStorage.setItem('studentName', studentDoc.data().name);
+        }
+    });
+
+    showView('student');
+    refreshStudentDashboard();
+    handleAutoJoin();
+}
+
+function handleAutoJoin() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const quizCode = urlParams.get('code');
+    const joinQuizBtn = document.getElementById('join-quiz-btn');
+    if (quizCode && joinQuizBtn) {
+        console.log("Auto-joining quiz with code:", quizCode);
+        joinQuizBtn.disabled = true;
+        joinQuizBtn.innerText = "JOINING...";
+        
+        const q = query(collection(db, "quizzes"), where("quizCode", "==", quizCode.toUpperCase()));
+        getDocs(q).then(snap => {
+            if (!snap.empty) {
+                const docSnap = snap.docs[0];
+                const newUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+                startQuiz(docSnap.id, docSnap.data());
+            }
+        }).finally(() => {
+            joinQuizBtn.disabled = false;
+            joinQuizBtn.innerText = "JOIN";
+        });
+    }
+}
 
 function showError(msg) {
     errorMessage.innerText = msg;
@@ -137,7 +175,37 @@ loginGoogleBtn.onclick = () => {
     signInWithPopup(auth, googleProvider).catch(err => showError(err.message));
 };
 
+studentAccessBtn.onclick = async () => {
+    const email = studentEmailLogin.value.trim().toLowerCase();
+    if (!email) {
+        showError("Please enter your email address.");
+        return;
+    }
+    if (!email.endsWith('@students.edu.sg')) {
+        showError("Please use your @students.edu.sg email address.");
+        return;
+    }
+
+    try {
+        // Verify student exists in the pre-populated list
+        const studentDoc = await getDoc(doc(db, "students", email));
+        if (!studentDoc.exists()) {
+            showError("Your email was not found in the student list. Please contact your teacher.");
+            return;
+        }
+
+        const studentData = studentDoc.data();
+        sessionStorage.setItem('studentEmail', email);
+        sessionStorage.setItem('studentName', studentData.name || 'Student');
+        handleStudentLogin(email, studentData.name || 'Student');
+    } catch (err) {
+        showError("An error occurred during verification. Please try again.");
+    }
+};
+
 logoutBtn.onclick = () => {
+    sessionStorage.removeItem('studentEmail');
+    sessionStorage.removeItem('studentName');
     signOut(auth);
 };
 
@@ -1412,7 +1480,7 @@ document.getElementById('next-question-btn').onclick = async () => {
             await setDoc(doc(db, "quiz_attempts", attemptId), {
                 quizId: activeQuizId,
                 quizTitle: activeQuiz.title,
-                studentId: currentUser.uid,
+                studentId: currentUser.uid || currentUser.email.toLowerCase(),
                 studentName: studentName,
                 studentEmail: currentUser.email,
                 answers: studentAnswers,

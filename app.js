@@ -1397,7 +1397,106 @@ async function refreshStudentDashboard() {
 // ----------------------------------------------------
 // STUDENT ATTEMPT DETAIL LOGIC
 // ----------------------------------------------------
+let previewAttemptMode = false;
+
+function renderAttemptDetailView(att, quiz, options = {}) {
+    const {
+        retakeQuizId = null,
+        allowRetake = false,
+        attemptedLabel = null
+    } = options;
+
+    const container = document.getElementById('attempt-questions-review');
+    const retakeBtn = document.getElementById('retake-quiz-btn');
+
+    document.getElementById('attempt-quiz-title').innerText = quiz.title;
+    document.getElementById('attempt-date').innerText = attemptedLabel || `Attempted on ${att.submittedAt?.toDate().toLocaleString()}`;
+    document.getElementById('attempt-score-display').innerText = `${att.score} / ${att.totalQuestions}`;
+
+    retakeBtn.onclick = retakeQuizId ? () => startQuiz(retakeQuizId) : null;
+    if (allowRetake && retakeQuizId) {
+        retakeBtn.classList.remove('hidden');
+    } else {
+        retakeBtn.classList.add('hidden');
+    }
+
+    container.innerHTML = "";
+    quiz.questions.forEach((q, qIdx) => {
+        const studentAnswer = att.answers[qIdx];
+        const isCorrect = studentAnswer === q.correctAnswer;
+        
+        const div = document.createElement('div');
+        div.className = `p-8 rounded-3xl border-2 ${isCorrect ? 'border-green-100 bg-green-50/30' : 'border-red-100 bg-red-50/30'}`;
+        div.innerHTML = `
+            <div class="flex items-center gap-3 mb-6">
+                <span class="text-xs font-black uppercase tracking-widest ${isCorrect ? 'text-green-600' : 'text-red-500'}">Question ${qIdx + 1}</span>
+                <span class="text-[10px] bg-white px-2 py-1 rounded-full font-bold shadow-sm ${isCorrect ? 'text-green-600' : 'text-red-500'}">
+                    ${isCorrect ? 'Correct' : 'Incorrect'}
+                </span>
+            </div>
+            <div class="mb-6">
+                <div class="text-lg font-bold mb-4 prose prose-indigo max-w-none">${q.text}</div>
+            </div>
+            
+            <div class="space-y-3 mb-6">
+                ${q.options.map((opt, i) => {
+                    let style = "bg-white text-gray-400 border border-gray-100";
+                    let icon = "";
+                    
+                    if (i === studentAnswer) {
+                        if (isCorrect) {
+                            style = "bg-green-600 text-white border-green-600 shadow-md";
+                            icon = '<ion-icon name="checkmark-circle"></ion-icon>';
+                        } else {
+                            style = "bg-red-500 text-white border-red-500 shadow-md";
+                            icon = '<ion-icon name="close-circle"></ion-icon>';
+                        }
+                    } else if (i === q.correctAnswer) {
+                        style = "bg-green-100 text-green-700 border-green-200 border-dashed border-2";
+                        icon = '<ion-icon name="checkmark-circle-outline"></ion-icon>';
+                    }
+
+                    const hasImage = q.optionImages && q.optionImages[i];
+                    const stripped = (opt || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
+                    const hasText = stripped.length > 0 || /<img[\s>]/i.test(opt || '');
+
+                    return `
+                        <div class="p-4 rounded-xl flex items-center justify-between font-bold ${style}">
+                            <div class="flex-1 space-y-2">
+                                ${hasImage ? `<img src="${q.optionImages[i]}" class="max-h-32 object-contain rounded-lg border bg-white shadow-sm">` : ''}
+                                ${hasText ? `<div class="prose prose-sm max-w-none">${opt}</div>` : (!hasImage ? `<span class="italic text-gray-300">Empty option</span>` : '')}
+                            </div>
+                            <span class="text-2xl ml-4">${icon}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+
+            ${q.explanation ? `
+                <div class="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
+                    <h5 class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                        <ion-icon name="bulb-outline"></ion-icon> Explanation
+                    </h5>
+                    <div class="text-indigo-900 font-medium prose prose-sm max-w-none">${q.explanation}</div>
+                </div>
+            ` : ''}
+        `;
+        container.appendChild(div);
+
+        if (window.renderMathInElement) {
+            renderMathInElement(div, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ],
+                throwOnError: false
+            });
+        }
+    });
+}
+
 window.viewAttemptDetail = async (attemptId) => {
+    previewAttemptMode = false;
     showView('attemptDetail');
     const container = document.getElementById('attempt-questions-review');
     container.innerHTML = `<div class="p-10 text-center text-gray-400">Loading details...</div>`;
@@ -1410,97 +1509,9 @@ window.viewAttemptDetail = async (attemptId) => {
         const quizSnap = await getDoc(doc(db, "quizzes", att.quizId));
         if (!quizSnap.exists()) return;
         const quiz = quizSnap.data();
-
-        document.getElementById('attempt-quiz-title').innerText = quiz.title;
-        document.getElementById('attempt-date').innerText = `Attempted on ${att.submittedAt?.toDate().toLocaleString()}`;
-        document.getElementById('attempt-score-display').innerText = `${att.score} / ${att.totalQuestions}`;
-
-        // Setup retake button
-        const retakeBtn = document.getElementById('retake-quiz-btn');
-        retakeBtn.onclick = () => startQuiz(att.quizId);
-        
-        // Hide retake button if quiz doesn't allow retakes
-        if (quiz.allowRetakes) {
-            retakeBtn.classList.remove('hidden');
-        } else {
-            retakeBtn.classList.add('hidden');
-        }
-
-        container.innerHTML = "";
-        quiz.questions.forEach((q, qIdx) => {
-            const studentAnswer = att.answers[qIdx];
-            const isCorrect = studentAnswer === q.correctAnswer;
-            
-            const div = document.createElement('div');
-            div.className = `p-8 rounded-3xl border-2 ${isCorrect ? 'border-green-100 bg-green-50/30' : 'border-red-100 bg-red-50/30'}`;
-            div.innerHTML = `
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="text-xs font-black uppercase tracking-widest ${isCorrect ? 'text-green-600' : 'text-red-500'}">Question ${qIdx + 1}</span>
-                    <span class="text-[10px] bg-white px-2 py-1 rounded-full font-bold shadow-sm ${isCorrect ? 'text-green-600' : 'text-red-500'}">
-                        ${isCorrect ? 'Correct' : 'Incorrect'}
-                    </span>
-                </div>
-                <div class="mb-6">
-                    <div class="text-lg font-bold mb-4 prose prose-indigo max-w-none">${q.text}</div>
-                </div>
-                
-                <div class="space-y-3 mb-6">
-                    ${q.options.map((opt, i) => {
-                        let style = "bg-white text-gray-400 border border-gray-100";
-                        let icon = "";
-                        
-                        // Student's choice
-                        if (i === studentAnswer) {
-                            if (isCorrect) {
-                                style = "bg-green-600 text-white border-green-600 shadow-md";
-                                icon = '<ion-icon name="checkmark-circle"></ion-icon>';
-                            } else {
-                                style = "bg-red-500 text-white border-red-500 shadow-md";
-                                icon = '<ion-icon name="close-circle"></ion-icon>';
-                            }
-                        } else if (i === q.correctAnswer) {
-                            // Show correct answer if student got it wrong
-                            style = "bg-green-100 text-green-700 border-green-200 border-dashed border-2";
-                            icon = '<ion-icon name="checkmark-circle-outline"></ion-icon>';
-                        }
-
-                        const hasImage = q.optionImages && q.optionImages[i];
-                        const stripped = (opt || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
-                        const hasText = stripped.length > 0 || /<img[\s>]/i.test(opt || '');
-
-                        return `
-                            <div class="p-4 rounded-xl flex items-center justify-between font-bold ${style}">
-                                <div class="flex-1 space-y-2">
-                                    ${hasImage ? `<img src="${q.optionImages[i]}" class="max-h-32 object-contain rounded-lg border bg-white shadow-sm">` : ''}
-                                    ${hasText ? `<div class="prose prose-sm max-w-none">${opt}</div>` : (!hasImage ? `<span class="italic text-gray-300">Empty option</span>` : '')}
-                                </div>
-                                <span class="text-2xl ml-4">${icon}</span>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-
-                ${q.explanation ? `
-                    <div class="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
-                        <h5 class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                            <ion-icon name="bulb-outline"></ion-icon> Explanation
-                        </h5>
-                        <div class="text-indigo-900 font-medium prose prose-sm max-w-none">${q.explanation}</div>
-                    </div>
-                ` : ''}
-            `;
-            container.appendChild(div);
-
-            // Re-render KaTeX
-            if (window.renderMathInElement) {
-                renderMathInElement(div, {
-                    delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false}
-                    ],
-                    throwOnError: false
-                });
-            }
+        renderAttemptDetailView(att, quiz, {
+            retakeQuizId: att.quizId,
+            allowRetake: !!quiz.allowRetakes
         });
 
     } catch (err) {
@@ -1509,7 +1520,16 @@ window.viewAttemptDetail = async (attemptId) => {
     }
 };
 
-document.getElementById('back-to-student-dashboard').onclick = () => showView('student');
+document.getElementById('back-to-student-dashboard').onclick = () => {
+    if (previewAttemptMode) {
+        previewAttemptMode = false;
+        isPreviewMode = false;
+        showView('teacher');
+        refreshTeacherDashboard();
+        return;
+    }
+    showView('student');
+};
 
 // Quiz Room State
 let activeQuiz = null;
@@ -1665,9 +1685,19 @@ document.getElementById('next-question-btn').onclick = async () => {
 
         try {
             if (isPreviewMode) {
-                alert(`Preview complete! Your score would have been ${score} / ${activeQuiz.questions.length}. No results were recorded.`);
-                showView('teacher');
-                refreshTeacherDashboard();
+                previewAttemptMode = true;
+                showView('attemptDetail');
+                renderAttemptDetailView({
+                    quizId: activeQuizId,
+                    answers: [...studentAnswers],
+                    score,
+                    totalQuestions: activeQuiz.questions.length,
+                    submittedAt: null
+                }, activeQuiz, {
+                    retakeQuizId: null,
+                    allowRetake: false,
+                    attemptedLabel: `Preview complete. Score: ${score} / ${activeQuiz.questions.length}. No results were recorded.`
+                });
                 return;
             }
 

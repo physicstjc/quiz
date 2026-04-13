@@ -845,25 +845,11 @@ function renderQuestionBlock(q, qIndex) {
                                        class="w-5 h-5 text-black border-2 border-black focus:ring-0">
                                 <span class="text-xs font-black text-gray-600 uppercase tracking-wider">Option ${String.fromCharCode(65 + i)}</span>
                             </label>
-                            
-                            <!-- Option Image Upload -->
-                            <div class="flex items-center gap-2">
-                                <label class="cursor-pointer neo-btn neo-btn-white p-2 flex items-center gap-2 text-[10px] font-black">
-                                    <ion-icon name="image-outline"></ion-icon>
-                                    ${q.optionImages[i] ? 'Change Image' : 'Add Image'}
-                                    <input type="file" class="hidden" accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif" onchange="window.uploadImage('${q.id}', this.files[0], 'optionImage', ${i})">
-                                </label>
-                                ${q.optionImages[i] ? `
-                                    <button onclick="window.updateOptionImage('${q.id}', ${i}, null); this.closest('.neo-brutal').querySelector('.opt-img-container').innerHTML = '';" class="neo-btn neo-btn-white p-2 text-red-600">
-                                        <ion-icon name="close-circle-outline"></ion-icon>
-                                    </button>
-                                ` : ''}
-                            </div>
                         </div>
 
-                        <div class="opt-img-container">
+                        <div class="opt-img-container mb-3">
                             ${q.optionImages[i] ? `
-                                <div class="mb-4 rounded-xl overflow-hidden border-2 border-white shadow-sm h-32 w-full bg-white flex items-center justify-center">
+                                <div class="rounded-xl overflow-hidden border-2 border-white shadow-sm h-32 w-full bg-white flex items-center justify-center">
                                     <img src="${q.optionImages[i]}" class="max-h-full object-contain">
                                 </div>
                             ` : ''}

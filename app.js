@@ -1465,66 +1465,80 @@ function buildAttemptReportText(att, quiz) {
     return lines.join('\n');
 }
 
-function downloadAttemptPdf(att, quiz) {
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-        showInfoModal('PDF library is not loaded. Please refresh and try again.', 'PDF Unavailable');
+async function downloadAttemptPdf(att, quiz) {
+    if (!window.jspdf || !window.jspdf.jsPDF || !window.html2canvas) {
+        showInfoModal('PDF renderer is not loaded. Please refresh and try again.', 'PDF Unavailable');
         return;
     }
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 40;
-    const maxWidth = pageWidth - margin * 2;
-    const lineHeight = 16;
-    let y = margin;
+    const reviewContainer = document.getElementById('attempt-questions-review');
+    if (!reviewContainer) {
+        showInfoModal('Unable to find the review content to export.', 'PDF Error');
+        return;
+    }
 
-    const ensureSpace = (requiredHeight = lineHeight) => {
-        if (y + requiredHeight > pageHeight - margin) {
-            doc.addPage();
-            y = margin;
-        }
-    };
+    const exportRoot = document.createElement('div');
+    exportRoot.style.position = 'fixed';
+    exportRoot.style.left = '-100000px';
+    exportRoot.style.top = '0';
+    exportRoot.style.width = '794px';
+    exportRoot.style.background = '#ffffff';
+    exportRoot.style.color = '#111111';
+    exportRoot.style.padding = '28px';
+    exportRoot.style.boxSizing = 'border-box';
+    exportRoot.style.fontFamily = 'Inter, system-ui, sans-serif';
 
-    const writeBlock = (text, fontSize = 11, isBold = false) => {
-        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-        doc.setFontSize(fontSize);
-        const wrapped = doc.splitTextToSize(text || '', maxWidth);
-        wrapped.forEach((line) => {
-            ensureSpace();
-            doc.text(line, margin, y);
-            y += lineHeight;
+    const header = document.createElement('div');
+    header.innerHTML = `
+        <h1 style="margin:0 0 10px 0;font-size:28px;font-weight:900;">${quiz.title}</h1>
+        <p style="margin:0 0 6px 0;font-size:14px;font-weight:700;">Score: ${att.score} / ${att.totalQuestions}</p>
+        <p style="margin:0 0 22px 0;font-size:12px;color:#555;">Generated: ${new Date().toLocaleString()}</p>
+    `;
+
+    const reviewClone = reviewContainer.cloneNode(true);
+    reviewClone.style.maxHeight = 'none';
+    reviewClone.style.overflow = 'visible';
+
+    exportRoot.appendChild(header);
+    exportRoot.appendChild(reviewClone);
+    document.body.appendChild(exportRoot);
+
+    try {
+        const canvas = await window.html2canvas(exportRoot, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: '#ffffff'
         });
-    };
 
-    writeBlock(`Quiz: ${quiz.title}`, 14, true);
-    writeBlock(`Score: ${att.score} / ${att.totalQuestions}`, 12, true);
-    writeBlock(`Generated: ${new Date().toLocaleString()}`, 10, false);
-    y += 8;
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pageWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    quiz.questions.forEach((q, qIdx) => {
-        const studentAnswer = att.answers[qIdx];
-        const correctAnswer = q.correctAnswer;
-        const studentLetter = studentAnswer !== null && studentAnswer !== undefined ? String.fromCharCode(65 + studentAnswer) : 'No Answer';
-        const correctLetter = correctAnswer !== null && correctAnswer !== undefined ? String.fromCharCode(65 + correctAnswer) : 'N/A';
-        const studentText = (studentAnswer !== null && studentAnswer !== undefined && q.options[studentAnswer]) ? htmlToPlainText(q.options[studentAnswer]) : 'No Answer';
-        const correctText = (correctAnswer !== null && correctAnswer !== undefined && q.options[correctAnswer]) ? htmlToPlainText(q.options[correctAnswer]) : 'N/A';
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
 
-        ensureSpace(lineHeight * 3);
-        y += 6;
-        writeBlock(`Question ${qIdx + 1}`, 12, true);
-        writeBlock(htmlToPlainText(q.text), 11, false);
-        writeBlock(`Your Answer: ${studentLetter} - ${studentText}`, 11, false);
-        writeBlock(`Correct Answer: ${correctLetter} - ${correctText}`, 11, false);
-        if (q.explanation) {
-            writeBlock(`Explanation: ${htmlToPlainText(q.explanation)}`, 11, false);
+        while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
         }
-        y += 8;
-    });
 
-    const safeTitle = (quiz.title || 'quiz-report').replace(/[^a-z0-9-_]+/gi, '_').slice(0, 60);
-    doc.save(`${safeTitle}_report.pdf`);
+        const safeTitle = (quiz.title || 'quiz-report').replace(/[^a-z0-9-_]+/gi, '_').slice(0, 60);
+        pdf.save(`${safeTitle}_report.pdf`);
+    } catch (err) {
+        console.error('PDF export failed:', err);
+        showInfoModal('PDF generation failed. If your images are from a restricted source, try opening each image once before exporting.', 'PDF Error');
+    } finally {
+        document.body.removeChild(exportRoot);
+    }
 }
 
 function emailAttemptReport(att, quiz) {

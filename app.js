@@ -9,7 +9,8 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstati
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
+// Use explicit bucket to avoid invalid-default-bucket config issues.
+const storage = getStorage(app, `gs://${firebaseConfig.projectId}.appspot.com`);
 const googleProvider = new GoogleAuthProvider();
 
 // App State
@@ -698,38 +699,34 @@ async function handleQuillImageUpload(quill, qId) {
         const file = input.files[0];
         if (!file) return;
 
+        if (!currentUser?.uid) {
+            showInfoModal("You must be signed in as a teacher before uploading images.", "Upload Blocked");
+            return;
+        }
+
         try {
-            const range = quill.getSelection(true);
+            const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
             const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
             const fileRef = ref(storage, storagePath);
             const snapshot = await uploadBytes(fileRef, file);
             const url = await getDownloadURL(snapshot.ref);
-            
+
             quill.insertEmbed(range.index, 'image', url);
             quill.setSelection(range.index + 1);
         } catch (error) {
             console.error("Quill image upload failed:", error);
-            alert("Failed to upload image. Please try again.");
+            const code = error?.code || "unknown";
+            const details = error?.message || "No error details available.";
+            if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
+                showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nUpdate Storage rules to allow authenticated teachers to write.`, "Upload Failed");
+            } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
+                showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and ensure the bucket exists.`, "Upload Failed");
+            } else {
+                showInfoModal(`Failed to upload image.\n\nCode: ${code}\n${details}`, "Upload Failed");
+            }
         }
     };
 }
-
-// Function to handle all image uploads (quill or options)
-window.uploadImage = async (qId, file, type, extra) => {
-    if (!file) return;
-    try {
-        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
-        const fileRef = ref(storage, storagePath);
-        const snapshot = await uploadBytes(fileRef, file);
-        const url = await getDownloadURL(snapshot.ref);
-        
-        if (type === 'optionImage') {
-            window.updateOptionImage(qId, extra, url);
-        }
-    } catch (err) {
-        alert("Upload failed: " + err.message);
-    }
-};
 
 function renderQuestionBlock(q, qIndex) {
     const qBlock = document.createElement('div');
@@ -893,17 +890,30 @@ window.updateOption = (id, optIdx, val) => {
 
 window.uploadImage = async (qId, file, type, extra) => {
     if (!file) return;
+    if (!currentUser?.uid) {
+        showInfoModal("You must be signed in as a teacher before uploading images.", "Upload Blocked");
+        return;
+    }
+
     try {
         const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
         const fileRef = ref(storage, storagePath);
         const snapshot = await uploadBytes(fileRef, file);
         const url = await getDownloadURL(snapshot.ref);
-        
+
         if (type === 'optionImage') {
             window.updateOptionImage(qId, extra, url);
         }
     } catch (err) {
-        alert("Upload failed: " + err.message);
+        const code = err?.code || "unknown";
+        const details = err?.message || "No error details available.";
+        if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
+            showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nUpdate Storage rules to allow authenticated teachers to write.`, "Upload Failed");
+        } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
+            showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and ensure the bucket exists.`, "Upload Failed");
+        } else {
+            showInfoModal(`Upload failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
+        }
     }
 };
 

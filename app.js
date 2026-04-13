@@ -1533,111 +1533,77 @@ async function urlToPngDataUrl(url) {
 }
 
 async function downloadAttemptPdf(att, quiz) {
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-        showInfoModal('PDF renderer is not loaded. Please refresh and try again.', 'PDF Unavailable');
+    const reviewContainer = document.getElementById('attempt-questions-review');
+    if (!reviewContainer) {
+        showInfoModal('Unable to find review content to export.', 'PDF Error');
         return;
     }
 
-    try {
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
+    const questionCards = Array.from(reviewContainer.children);
+    if (questionCards.length === 0) {
+        showInfoModal('No question content found to export.', 'PDF Error');
+        return;
+    }
 
-        const margin = 36;
-        const maxTextWidth = pageWidth - margin * 2;
-        const maxImageWidth = pageWidth - margin * 2;
+    const popup = window.open('', '_blank');
+    if (!popup) {
+        showInfoModal('Popup blocked. Please allow popups to generate PDF.', 'PDF Blocked');
+        return;
+    }
 
-        const writeWrapped = (text, y, size = 11, bold = false) => {
-            pdf.setFont('helvetica', bold ? 'bold' : 'normal');
-            pdf.setFontSize(size);
-            const lines = pdf.splitTextToSize(text || '', maxTextWidth);
-            lines.forEach((line) => {
-                if (y > pageHeight - margin) return;
-                pdf.text(line, margin, y);
-                y += size + 4;
+    const printStyles = `
+      <style>
+        @page { size: A4; margin: 14mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Inter, system-ui, -apple-system, sans-serif; color: #111; margin: 0; }
+        .cover { margin-bottom: 12mm; }
+        .cover h1 { margin: 0 0 6px 0; font-size: 24px; }
+        .cover p { margin: 2px 0; font-size: 12px; color: #555; }
+        .question-page { page-break-after: always; }
+        .question-page:last-child { page-break-after: auto; }
+        .question-wrap { width: 100%; }
+        img { max-width: 100% !important; height: auto !important; display: block; }
+      </style>
+    `;
+
+    const safeTitle = (quiz.title || 'quiz-report').replace(/[<>]/g, '');
+    const coverHtml = `
+      <div class="cover">
+        <h1>${safeTitle}</h1>
+        <p>Score: ${att.score} / ${att.totalQuestions}</p>
+        <p>Generated: ${new Date().toLocaleString()}</p>
+      </div>
+    `;
+
+    const pagesHtml = questionCards
+        .map((card, idx) => `<section class="question-page"><div class="question-wrap"><div style="font-size:12px;font-weight:700;margin-bottom:8px;">Question ${idx + 1} of ${questionCards.length}</div>${card.innerHTML}</div></section>`)
+        .join('');
+
+    popup.document.open();
+    popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title>${printStyles}</head><body>${coverHtml}${pagesHtml}</body></html>`);
+    popup.document.close();
+
+    const waitForPopupImages = async () => {
+        const imgs = Array.from(popup.document.images || []);
+        if (imgs.length === 0) return;
+        await Promise.all(imgs.map((img) => {
+            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+            return new Promise((resolve) => {
+                const done = () => resolve();
+                img.addEventListener('load', done, { once: true });
+                img.addEventListener('error', done, { once: true });
+                setTimeout(done, 4000);
             });
-            return y;
-        };
+        }));
+    };
 
-        for (let i = 0; i < quiz.questions.length; i++) {
-            if (i > 0) pdf.addPage();
-
-            const q = quiz.questions[i];
-            const studentAnswer = att.answers[i];
-            const correctAnswer = q.correctAnswer;
-            const studentLetter = studentAnswer !== null && studentAnswer !== undefined ? String.fromCharCode(65 + studentAnswer) : 'No Answer';
-            const correctLetter = correctAnswer !== null && correctAnswer !== undefined ? String.fromCharCode(65 + correctAnswer) : 'N/A';
-
-            let y = margin;
-            y = writeWrapped(`${quiz.title}`, y, 15, true);
-            y = writeWrapped(`Score: ${att.score} / ${att.totalQuestions}`, y + 2, 11, true);
-            y = writeWrapped(`Question ${i + 1} of ${quiz.questions.length}`, y + 2, 11, true);
-            y += 8;
-
-            y = writeWrapped('Question', y, 12, true);
-            y = writeWrapped(htmlToPlainText(q.text), y, 11, false);
-
-            const questionImages = extractImageUrlsFromHtml(q.text);
-            for (const src of questionImages) {
-                const converted = await urlToPngDataUrl(src);
-                if (!converted) continue;
-                const ratio = converted.width / converted.height;
-                const drawW = Math.min(maxImageWidth, converted.width);
-                const drawH = Math.min(180, drawW / ratio);
-                if (y + drawH > pageHeight - margin) break;
-                pdf.addImage(converted.dataUrl, 'PNG', margin, y, drawW, drawH);
-                y += drawH + 8;
-            }
-
-            y += 4;
-            y = writeWrapped(`Your Answer: ${studentLetter}`, y, 11, true);
-            y = writeWrapped(`Correct Answer: ${correctLetter}`, y, 11, true);
-
-            for (let optIdx = 0; optIdx < (q.options || []).length; optIdx++) {
-                const opt = q.options[optIdx] || '';
-                const label = String.fromCharCode(65 + optIdx);
-                const mark = optIdx === studentAnswer ? ' (Your choice)' : (optIdx === correctAnswer ? ' (Correct)' : '');
-                y = writeWrapped(`${label}${mark}`, y + 2, 11, true);
-                y = writeWrapped(htmlToPlainText(opt), y, 10, false);
-
-                const optionImages = [...extractImageUrlsFromHtml(opt)];
-                if (q.optionImages && q.optionImages[optIdx]) optionImages.push(q.optionImages[optIdx]);
-                for (const src of optionImages) {
-                    const converted = await urlToPngDataUrl(src);
-                    if (!converted) continue;
-                    const ratio = converted.width / converted.height;
-                    const drawW = Math.min(maxImageWidth, converted.width);
-                    const drawH = Math.min(140, drawW / ratio);
-                    if (y + drawH > pageHeight - margin) break;
-                    pdf.addImage(converted.dataUrl, 'PNG', margin, y, drawW, drawH);
-                    y += drawH + 6;
-                }
-            }
-
-            if (q.explanation) {
-                y += 6;
-                y = writeWrapped('Explanation', y, 12, true);
-                y = writeWrapped(htmlToPlainText(q.explanation), y, 10, false);
-                const explanationImages = extractImageUrlsFromHtml(q.explanation);
-                for (const src of explanationImages) {
-                    const converted = await urlToPngDataUrl(src);
-                    if (!converted) continue;
-                    const ratio = converted.width / converted.height;
-                    const drawW = Math.min(maxImageWidth, converted.width);
-                    const drawH = Math.min(170, drawW / ratio);
-                    if (y + drawH > pageHeight - margin) break;
-                    pdf.addImage(converted.dataUrl, 'PNG', margin, y, drawW, drawH);
-                    y += drawH + 8;
-                }
-            }
-        }
-
-        const safeTitle = (quiz.title || 'quiz-report').replace(/[^a-z0-9-_]+/gi, '_').slice(0, 60);
-        pdf.save(`${safeTitle}_report.pdf`);
+    try {
+        await waitForPopupImages();
+        popup.focus();
+        popup.print();
     } catch (err) {
-        console.error('PDF export failed:', err);
-        showInfoModal('PDF generation failed while embedding text/images. Please try again.', 'PDF Error');
+        console.error('Print-PDF generation failed:', err);
+        showInfoModal('Unable to prepare print-friendly PDF view.', 'PDF Error');
     }
 }
 

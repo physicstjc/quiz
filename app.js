@@ -1501,6 +1501,24 @@ async function downloadAttemptPdf(att, quiz) {
         }));
     };
 
+    const toProxyUrl = (src) => {
+        if (!src) return src;
+        if (/^(data:|blob:)/i.test(src)) return src;
+        if (!/^https?:\/\//i.test(src)) return src;
+        const base = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/proxyImage`;
+        if (src.startsWith(base)) return src;
+        return `${base}?url=${encodeURIComponent(src)}`;
+    };
+
+    const rewriteImageSourcesForPdf = (root) => {
+        const imgs = Array.from(root.querySelectorAll('img'));
+        imgs.forEach((img) => {
+            const original = img.getAttribute('src') || img.src;
+            const proxied = toProxyUrl(original);
+            if (proxied) img.src = proxied;
+        });
+    };
+
     try {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -1545,6 +1563,8 @@ async function downloadAttemptPdf(att, quiz) {
             exportRoot.appendChild(header);
             exportRoot.appendChild(questionClone);
             document.body.appendChild(exportRoot);
+
+            rewriteImageSourcesForPdf(exportRoot);
 
             await waitForImages(exportRoot);
 
@@ -1631,7 +1651,6 @@ function renderAttemptDetailView(att, quiz, options = {}) {
     const container = document.getElementById('attempt-questions-review');
     const retakeBtn = document.getElementById('retake-quiz-btn');
     const downloadPdfBtn = document.getElementById('download-attempt-pdf-btn');
-    const emailBtn = document.getElementById('email-attempt-btn');
 
     currentAttemptForExport = att;
     currentQuizForExport = quiz;
@@ -1640,14 +1659,6 @@ function renderAttemptDetailView(att, quiz, options = {}) {
         downloadPdfBtn.onclick = () => {
             if (currentAttemptForExport && currentQuizForExport) {
                 downloadAttemptPdf(currentAttemptForExport, currentQuizForExport);
-            }
-        };
-    }
-
-    if (emailBtn) {
-        emailBtn.onclick = () => {
-            if (currentAttemptForExport && currentQuizForExport) {
-                emailAttemptReport(currentAttemptForExport, currentQuizForExport);
             }
         };
     }

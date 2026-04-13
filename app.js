@@ -1465,79 +1465,78 @@ function buildAttemptReportText(att, quiz) {
     return lines.join('\n');
 }
 
+function extractImageUrlsFromHtml(html) {
+    if (!html) return [];
+    const holder = document.createElement('div');
+    holder.innerHTML = html;
+    return Array.from(holder.querySelectorAll('img'))
+        .map((img) => img.getAttribute('src') || img.src)
+        .filter(Boolean);
+}
+
+function toProxyUrl(src) {
+    if (!src) return src;
+    if (/^(data:|blob:)/i.test(src)) return src;
+    if (!/^https?:\/\//i.test(src)) return src;
+    const base = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/proxyImage`;
+    if (src.startsWith(base)) return src;
+    return `${base}?url=${encodeURIComponent(src)}`;
+}
+
+async function urlToPngDataUrl(url) {
+    if (!url) return null;
+
+    const candidates = [];
+    const proxied = toProxyUrl(url);
+    if (proxied && proxied !== url) candidates.push(proxied);
+    candidates.push(url);
+
+    for (const src of candidates) {
+        try {
+            const res = await fetch(src, { mode: 'cors', credentials: 'omit' });
+            if (!res.ok) continue;
+            const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+            if (!contentType.startsWith('image/')) continue;
+
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+
+            try {
+                const img = await new Promise((resolve, reject) => {
+                    const el = new Image();
+                    el.onload = () => resolve(el);
+                    el.onerror = reject;
+                    el.src = objectUrl;
+                });
+
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, img.naturalWidth || img.width || 1);
+                canvas.height = Math.max(1, img.naturalHeight || img.height || 1);
+                const ctx = canvas.getContext('2d');
+                if (!ctx) throw new Error('Canvas unavailable');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                return {
+                    dataUrl: canvas.toDataURL('image/png'),
+                    width: canvas.width,
+                    height: canvas.height
+                };
+            } finally {
+                URL.revokeObjectURL(objectUrl);
+            }
+        } catch (e) {
+            console.warn('Image fetch/convert failed for', src, e);
+        }
+    }
+
+    return null;
+}
+
 async function downloadAttemptPdf(att, quiz) {
-    if (!window.jspdf || !window.jspdf.jsPDF || !window.html2canvas) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
         showInfoModal('PDF renderer is not loaded. Please refresh and try again.', 'PDF Unavailable');
         return;
     }
-
-    const reviewContainer = document.getElementById('attempt-questions-review');
-    if (!reviewContainer) {
-        showInfoModal('Unable to find the review content to export.', 'PDF Error');
-        return;
-    }
-
-    const waitForImages = async (root) => {
-        const imgs = Array.from(root.querySelectorAll('img'));
-        if (imgs.length === 0) return;
-
-        await Promise.all(imgs.map((img) => {
-            // Encourage CORS-enabled loading where supported.
-            if (img.src && /^https?:\/\//i.test(img.src)) {
-                img.crossOrigin = 'anonymous';
-                img.referrerPolicy = 'no-referrer';
-            }
-            img.loading = 'eager';
-            img.decoding = 'sync';
-
-            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-            return new Promise((resolve) => {
-                const done = () => resolve();
-
-                img.addEventListener('load', done, { once: true });
-                img.addEventListener('error', () => {
-                    // If proxy load fails, try the original source directly.
-                    const originalSrc = img.getAttribute('data-original-src');
-                    if (originalSrc && img.src !== originalSrc) {
-                        img.crossOrigin = 'anonymous';
-                        img.src = originalSrc;
-                        if (img.complete && img.naturalWidth > 0) {
-                            done();
-                            return;
-                        }
-                        img.addEventListener('load', done, { once: true });
-                        img.addEventListener('error', done, { once: true });
-                    } else {
-                        done();
-                    }
-                }, { once: true });
-
-                // Avoid hanging forever on broken image hosts.
-                setTimeout(done, 3500);
-            });
-        }));
-    };
-
-    const toProxyUrl = (src) => {
-        if (!src) return src;
-        if (/^(data:|blob:)/i.test(src)) return src;
-        if (!/^https?:\/\//i.test(src)) return src;
-        const base = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/proxyImage`;
-        if (src.startsWith(base)) return src;
-        return `${base}?url=${encodeURIComponent(src)}`;
-    };
-
-    const rewriteImageSourcesForPdf = (root) => {
-        const imgs = Array.from(root.querySelectorAll('img'));
-        imgs.forEach((img) => {
-            const original = img.getAttribute('src') || img.src;
-            const proxied = toProxyUrl(original);
-            if (proxied) {
-                img.setAttribute('data-original-src', original);
-                img.src = proxied;
-            }
-        });
-    };
 
     try {
         const { jsPDF } = window.jspdf;
@@ -1545,77 +1544,100 @@ async function downloadAttemptPdf(att, quiz) {
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
 
-        const questionCards = Array.from(reviewContainer.children);
-        if (questionCards.length === 0) {
-            showInfoModal('No question content found to export.', 'PDF Error');
-            return;
-        }
+        const margin = 36;
+        const maxTextWidth = pageWidth - margin * 2;
+        const maxImageWidth = pageWidth - margin * 2;
 
-        const margin = 24;
-        const drawWidth = pageWidth - margin * 2;
-        const drawHeight = pageHeight - margin * 2;
+        const writeWrapped = (text, y, size = 11, bold = false) => {
+            pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+            pdf.setFontSize(size);
+            const lines = pdf.splitTextToSize(text || '', maxTextWidth);
+            lines.forEach((line) => {
+                if (y > pageHeight - margin) return;
+                pdf.text(line, margin, y);
+                y += size + 4;
+            });
+            return y;
+        };
 
-        for (let i = 0; i < questionCards.length; i++) {
+        for (let i = 0; i < quiz.questions.length; i++) {
             if (i > 0) pdf.addPage();
 
-            const exportRoot = document.createElement('div');
-            exportRoot.style.position = 'fixed';
-            exportRoot.style.left = '-100000px';
-            exportRoot.style.top = '0';
-            exportRoot.style.width = '794px';
-            exportRoot.style.background = '#ffffff';
-            exportRoot.style.color = '#111111';
-            exportRoot.style.padding = '24px';
-            exportRoot.style.boxSizing = 'border-box';
-            exportRoot.style.fontFamily = 'Inter, system-ui, sans-serif';
+            const q = quiz.questions[i];
+            const studentAnswer = att.answers[i];
+            const correctAnswer = q.correctAnswer;
+            const studentLetter = studentAnswer !== null && studentAnswer !== undefined ? String.fromCharCode(65 + studentAnswer) : 'No Answer';
+            const correctLetter = correctAnswer !== null && correctAnswer !== undefined ? String.fromCharCode(65 + correctAnswer) : 'N/A';
 
-            const header = document.createElement('div');
-            header.innerHTML = `
-                <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:900;line-height:1.2;">${quiz.title}</h1>
-                <p style="margin:0 0 4px 0;font-size:12px;font-weight:700;">Score: ${att.score} / ${att.totalQuestions}</p>
-                <p style="margin:0 0 14px 0;font-size:11px;color:#555;">Question ${i + 1} of ${questionCards.length}</p>
-            `;
+            let y = margin;
+            y = writeWrapped(`${quiz.title}`, y, 15, true);
+            y = writeWrapped(`Score: ${att.score} / ${att.totalQuestions}`, y + 2, 11, true);
+            y = writeWrapped(`Question ${i + 1} of ${quiz.questions.length}`, y + 2, 11, true);
+            y += 8;
 
-            const questionClone = questionCards[i].cloneNode(true);
-            questionClone.style.maxHeight = 'none';
-            questionClone.style.overflow = 'visible';
+            y = writeWrapped('Question', y, 12, true);
+            y = writeWrapped(htmlToPlainText(q.text), y, 11, false);
 
-            exportRoot.appendChild(header);
-            exportRoot.appendChild(questionClone);
-            document.body.appendChild(exportRoot);
-
-            rewriteImageSourcesForPdf(exportRoot);
-
-            await waitForImages(exportRoot);
-
-            const canvas = await window.html2canvas(exportRoot, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: false,
-                backgroundColor: '#ffffff'
-            });
-
-            const imgData = canvas.toDataURL('image/png');
-            const imgAspect = canvas.width / canvas.height;
-            let finalW = drawWidth;
-            let finalH = finalW / imgAspect;
-            if (finalH > drawHeight) {
-                finalH = drawHeight;
-                finalW = finalH * imgAspect;
+            const questionImages = extractImageUrlsFromHtml(q.text);
+            for (const src of questionImages) {
+                const converted = await urlToPngDataUrl(src);
+                if (!converted) continue;
+                const ratio = converted.width / converted.height;
+                const drawW = Math.min(maxImageWidth, converted.width);
+                const drawH = Math.min(180, drawW / ratio);
+                if (y + drawH > pageHeight - margin) break;
+                pdf.addImage(converted.dataUrl, 'PNG', margin, y, drawW, drawH);
+                y += drawH + 8;
             }
 
-            const x = margin + (drawWidth - finalW) / 2;
-            const y = margin + (drawHeight - finalH) / 2;
-            pdf.addImage(imgData, 'PNG', x, y, finalW, finalH);
+            y += 4;
+            y = writeWrapped(`Your Answer: ${studentLetter}`, y, 11, true);
+            y = writeWrapped(`Correct Answer: ${correctLetter}`, y, 11, true);
 
-            document.body.removeChild(exportRoot);
+            for (let optIdx = 0; optIdx < (q.options || []).length; optIdx++) {
+                const opt = q.options[optIdx] || '';
+                const label = String.fromCharCode(65 + optIdx);
+                const mark = optIdx === studentAnswer ? ' (Your choice)' : (optIdx === correctAnswer ? ' (Correct)' : '');
+                y = writeWrapped(`${label}${mark}`, y + 2, 11, true);
+                y = writeWrapped(htmlToPlainText(opt), y, 10, false);
+
+                const optionImages = [...extractImageUrlsFromHtml(opt)];
+                if (q.optionImages && q.optionImages[optIdx]) optionImages.push(q.optionImages[optIdx]);
+                for (const src of optionImages) {
+                    const converted = await urlToPngDataUrl(src);
+                    if (!converted) continue;
+                    const ratio = converted.width / converted.height;
+                    const drawW = Math.min(maxImageWidth, converted.width);
+                    const drawH = Math.min(140, drawW / ratio);
+                    if (y + drawH > pageHeight - margin) break;
+                    pdf.addImage(converted.dataUrl, 'PNG', margin, y, drawW, drawH);
+                    y += drawH + 6;
+                }
+            }
+
+            if (q.explanation) {
+                y += 6;
+                y = writeWrapped('Explanation', y, 12, true);
+                y = writeWrapped(htmlToPlainText(q.explanation), y, 10, false);
+                const explanationImages = extractImageUrlsFromHtml(q.explanation);
+                for (const src of explanationImages) {
+                    const converted = await urlToPngDataUrl(src);
+                    if (!converted) continue;
+                    const ratio = converted.width / converted.height;
+                    const drawW = Math.min(maxImageWidth, converted.width);
+                    const drawH = Math.min(170, drawW / ratio);
+                    if (y + drawH > pageHeight - margin) break;
+                    pdf.addImage(converted.dataUrl, 'PNG', margin, y, drawW, drawH);
+                    y += drawH + 8;
+                }
+            }
         }
 
         const safeTitle = (quiz.title || 'quiz-report').replace(/[^a-z0-9-_]+/gi, '_').slice(0, 60);
         pdf.save(`${safeTitle}_report.pdf`);
     } catch (err) {
         console.error('PDF export failed:', err);
-        showInfoModal('PDF generation failed. If your images are from a restricted source, try opening each image once before exporting.', 'PDF Error');
+        showInfoModal('PDF generation failed while embedding text/images. Please try again.', 'PDF Error');
     }
 }
 

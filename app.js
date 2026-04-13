@@ -1493,8 +1493,25 @@ async function downloadAttemptPdf(att, quiz) {
             if (img.complete && img.naturalWidth > 0) return Promise.resolve();
             return new Promise((resolve) => {
                 const done = () => resolve();
+
                 img.addEventListener('load', done, { once: true });
-                img.addEventListener('error', done, { once: true });
+                img.addEventListener('error', () => {
+                    // If proxy load fails, try the original source directly.
+                    const originalSrc = img.getAttribute('data-original-src');
+                    if (originalSrc && img.src !== originalSrc) {
+                        img.crossOrigin = 'anonymous';
+                        img.src = originalSrc;
+                        if (img.complete && img.naturalWidth > 0) {
+                            done();
+                            return;
+                        }
+                        img.addEventListener('load', done, { once: true });
+                        img.addEventListener('error', done, { once: true });
+                    } else {
+                        done();
+                    }
+                }, { once: true });
+
                 // Avoid hanging forever on broken image hosts.
                 setTimeout(done, 3500);
             });
@@ -1515,7 +1532,10 @@ async function downloadAttemptPdf(att, quiz) {
         imgs.forEach((img) => {
             const original = img.getAttribute('src') || img.src;
             const proxied = toProxyUrl(original);
-            if (proxied) img.src = proxied;
+            if (proxied) {
+                img.setAttribute('data-original-src', original);
+                img.src = proxied;
+            }
         });
     };
 

@@ -716,15 +716,60 @@ async function uploadImageToStorage(qId, file) {
         console.error("Image upload failed:", error);
         const code = error?.code || "unknown";
         const details = error?.message || "No error details available.";
-        if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
-            showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nUpdate Storage rules to allow authenticated teachers to write.`, "Upload Failed");
-        } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
-            showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and ensure the bucket exists.`, "Upload Failed");
-        } else {
-            showInfoModal(`Upload failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
+        try {
+            const dataUrl = await convertImageToDataUrl(file);
+            showInfoModal(
+                `Firebase upload failed, so the image was embedded directly instead.\n\nCode: ${code}\n${details}`,
+                "Using Local Image Fallback"
+            );
+            return dataUrl;
+        } catch (fallbackErr) {
+            if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
+                showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nUpdate Storage rules to allow authenticated teachers to write.`, "Upload Failed");
+            } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
+                showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and ensure the bucket exists.`, "Upload Failed");
+            } else {
+                showInfoModal(`Upload failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
+            }
+            console.error("Local image fallback failed:", fallbackErr);
+            return null;
         }
-        return null;
     }
+}
+
+function convertImageToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Failed to read image file."));
+        reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => reject(new Error("Failed to decode image."));
+            img.onload = () => {
+                const maxDim = 1400;
+                const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+                const targetW = Math.max(1, Math.round(img.width * scale));
+                const targetH = Math.max(1, Math.round(img.height * scale));
+
+                const canvas = document.createElement('canvas');
+                canvas.width = targetW;
+                canvas.height = targetH;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error("Canvas context unavailable."));
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, targetW, targetH);
+                const isPng = (file.type || '').toLowerCase().includes('png');
+                const mime = isPng ? 'image/png' : 'image/jpeg';
+                const quality = isPng ? undefined : 0.82;
+                resolve(canvas.toDataURL(mime, quality));
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 function attachQuillHandlers(quill, qId) {

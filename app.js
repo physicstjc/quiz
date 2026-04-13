@@ -1428,6 +1428,116 @@ async function refreshStudentDashboard() {
 // STUDENT ATTEMPT DETAIL LOGIC
 // ----------------------------------------------------
 let previewAttemptMode = false;
+let currentAttemptForExport = null;
+let currentQuizForExport = null;
+
+function htmlToPlainText(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html || '';
+    return (div.textContent || div.innerText || '').replace(/\s+\n/g, '\n').replace(/\n\s+/g, '\n').trim();
+}
+
+function buildAttemptReportText(att, quiz) {
+    const lines = [];
+    lines.push(`Quiz: ${quiz.title}`);
+    lines.push(`Score: ${att.score} / ${att.totalQuestions}`);
+    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push('');
+
+    quiz.questions.forEach((q, qIdx) => {
+        const studentAnswer = att.answers[qIdx];
+        const correctAnswer = q.correctAnswer;
+        const studentLetter = studentAnswer !== null && studentAnswer !== undefined ? String.fromCharCode(65 + studentAnswer) : 'No Answer';
+        const correctLetter = correctAnswer !== null && correctAnswer !== undefined ? String.fromCharCode(65 + correctAnswer) : 'N/A';
+        const studentText = (studentAnswer !== null && studentAnswer !== undefined && q.options[studentAnswer]) ? htmlToPlainText(q.options[studentAnswer]) : 'No Answer';
+        const correctText = (correctAnswer !== null && correctAnswer !== undefined && q.options[correctAnswer]) ? htmlToPlainText(q.options[correctAnswer]) : 'N/A';
+
+        lines.push(`Question ${qIdx + 1}`);
+        lines.push(htmlToPlainText(q.text));
+        lines.push(`Your Answer: ${studentLetter} - ${studentText}`);
+        lines.push(`Correct Answer: ${correctLetter} - ${correctText}`);
+        if (q.explanation) {
+            lines.push(`Explanation: ${htmlToPlainText(q.explanation)}`);
+        }
+        lines.push('');
+    });
+
+    return lines.join('\n');
+}
+
+function downloadAttemptPdf(att, quiz) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        showInfoModal('PDF library is not loaded. Please refresh and try again.', 'PDF Unavailable');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 40;
+    const maxWidth = pageWidth - margin * 2;
+    const lineHeight = 16;
+    let y = margin;
+
+    const ensureSpace = (requiredHeight = lineHeight) => {
+        if (y + requiredHeight > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+        }
+    };
+
+    const writeBlock = (text, fontSize = 11, isBold = false) => {
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        doc.setFontSize(fontSize);
+        const wrapped = doc.splitTextToSize(text || '', maxWidth);
+        wrapped.forEach((line) => {
+            ensureSpace();
+            doc.text(line, margin, y);
+            y += lineHeight;
+        });
+    };
+
+    writeBlock(`Quiz: ${quiz.title}`, 14, true);
+    writeBlock(`Score: ${att.score} / ${att.totalQuestions}`, 12, true);
+    writeBlock(`Generated: ${new Date().toLocaleString()}`, 10, false);
+    y += 8;
+
+    quiz.questions.forEach((q, qIdx) => {
+        const studentAnswer = att.answers[qIdx];
+        const correctAnswer = q.correctAnswer;
+        const studentLetter = studentAnswer !== null && studentAnswer !== undefined ? String.fromCharCode(65 + studentAnswer) : 'No Answer';
+        const correctLetter = correctAnswer !== null && correctAnswer !== undefined ? String.fromCharCode(65 + correctAnswer) : 'N/A';
+        const studentText = (studentAnswer !== null && studentAnswer !== undefined && q.options[studentAnswer]) ? htmlToPlainText(q.options[studentAnswer]) : 'No Answer';
+        const correctText = (correctAnswer !== null && correctAnswer !== undefined && q.options[correctAnswer]) ? htmlToPlainText(q.options[correctAnswer]) : 'N/A';
+
+        ensureSpace(lineHeight * 3);
+        y += 6;
+        writeBlock(`Question ${qIdx + 1}`, 12, true);
+        writeBlock(htmlToPlainText(q.text), 11, false);
+        writeBlock(`Your Answer: ${studentLetter} - ${studentText}`, 11, false);
+        writeBlock(`Correct Answer: ${correctLetter} - ${correctText}`, 11, false);
+        if (q.explanation) {
+            writeBlock(`Explanation: ${htmlToPlainText(q.explanation)}`, 11, false);
+        }
+        y += 8;
+    });
+
+    const safeTitle = (quiz.title || 'quiz-report').replace(/[^a-z0-9-_]+/gi, '_').slice(0, 60);
+    doc.save(`${safeTitle}_report.pdf`);
+}
+
+function emailAttemptReport(att, quiz) {
+    const recipient = currentUser?.email || '';
+    const subject = `Quiz Review: ${quiz.title}`;
+    const body = buildAttemptReportText(att, quiz);
+    const encoded = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    if (encoded.length > 1800) {
+        showInfoModal('Report is long. Your email app may truncate it. Use Download PDF for a complete copy.', 'Email Length Warning');
+    }
+    window.location.href = encoded;
+}
 
 function renderAttemptDetailView(att, quiz, options = {}) {
     const {
@@ -1438,6 +1548,27 @@ function renderAttemptDetailView(att, quiz, options = {}) {
 
     const container = document.getElementById('attempt-questions-review');
     const retakeBtn = document.getElementById('retake-quiz-btn');
+    const downloadPdfBtn = document.getElementById('download-attempt-pdf-btn');
+    const emailBtn = document.getElementById('email-attempt-btn');
+
+    currentAttemptForExport = att;
+    currentQuizForExport = quiz;
+
+    if (downloadPdfBtn) {
+        downloadPdfBtn.onclick = () => {
+            if (currentAttemptForExport && currentQuizForExport) {
+                downloadAttemptPdf(currentAttemptForExport, currentQuizForExport);
+            }
+        };
+    }
+
+    if (emailBtn) {
+        emailBtn.onclick = () => {
+            if (currentAttemptForExport && currentQuizForExport) {
+                emailAttemptReport(currentAttemptForExport, currentQuizForExport);
+            }
+        };
+    }
 
     document.getElementById('attempt-quiz-title').innerText = quiz.title;
     document.getElementById('attempt-date').innerText = attemptedLabel || `Attempted on ${att.submittedAt?.toDate().toLocaleString()}`;

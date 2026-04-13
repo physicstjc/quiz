@@ -696,6 +696,40 @@ async function uploadImageToStorage(qId, file) {
     }
 
     try {
+        // Primary strategy: embed a compressed image directly in quiz content.
+        // This avoids Firebase Storage/rules issues and keeps authoring reliable.
+        const embeddedUrl = await convertImageToDataUrl(file);
+
+        // Try cloud upload in background for smaller payloads, but do not block editor UX.
+        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
+        if (embeddedUrl.length < 700000) {
+            try {
+                const tryUpload = async (targetStorage) => {
+                    const fileRef = ref(targetStorage, storagePath);
+                    const snapshot = await uploadBytes(fileRef, file);
+                    return await getDownloadURL(snapshot.ref);
+                };
+
+                try {
+                    return await tryUpload(storage);
+                } catch (firstError) {
+                    const firstCode = firstError?.code || "";
+                    if (firstCode === 'storage/invalid-default-bucket' || firstCode === 'storage/bucket-not-found') {
+                        return await tryUpload(legacyStorage);
+                    }
+                    throw firstError;
+                }
+            } catch (cloudErr) {
+                console.warn("Cloud upload failed; using embedded image fallback.", cloudErr);
+                return embeddedUrl;
+            }
+        }
+
+        return embeddedUrl;
+    } catch (embedError) {
+        console.error("Embedded image conversion failed:", embedError);
+
+        // Secondary fallback: attempt Firebase upload when local conversion fails.
         const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
         const tryUpload = async (targetStorage) => {
             const fileRef = ref(targetStorage, storagePath);
@@ -716,24 +750,14 @@ async function uploadImageToStorage(qId, file) {
         console.error("Image upload failed:", error);
         const code = error?.code || "unknown";
         const details = error?.message || "No error details available.";
-        try {
-            const dataUrl = await convertImageToDataUrl(file);
-            showInfoModal(
-                `Firebase upload failed, so the image was embedded directly instead.\n\nCode: ${code}\n${details}`,
-                "Using Local Image Fallback"
-            );
-            return dataUrl;
-        } catch (fallbackErr) {
-            if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
-                showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nUpdate Storage rules to allow authenticated teachers to write.`, "Upload Failed");
-            } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
-                showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and ensure the bucket exists.`, "Upload Failed");
-            } else {
-                showInfoModal(`Upload failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
-            }
-            console.error("Local image fallback failed:", fallbackErr);
-            return null;
+        if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
+            showInfoModal(`Image upload is blocked by Firebase Storage rules and local embedding also failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
+        } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
+            showInfoModal(`Storage bucket configuration is invalid and local embedding also failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
+        } else {
+            showInfoModal(`Upload failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
         }
+        return null;
     }
 }
 

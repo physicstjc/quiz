@@ -1528,15 +1528,45 @@ function downloadAttemptPdf(att, quiz) {
 }
 
 function emailAttemptReport(att, quiz) {
-    const recipient = currentUser?.email || '';
-    const subject = `Quiz Review: ${quiz.title}`;
-    const body = buildAttemptReportText(att, quiz);
-    const encoded = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return sendAttemptReportEmail(att, quiz);
+}
 
-    if (encoded.length > 1800) {
-        showInfoModal('Report is long. Your email app may truncate it. Use Download PDF for a complete copy.', 'Email Length Warning');
+async function sendAttemptReportEmail(att, quiz) {
+    const recipient = (currentUser?.email || '').trim().toLowerCase();
+    if (!recipient) {
+        showInfoModal('No recipient email found for this account.', 'Email Failed');
+        return;
     }
-    window.location.href = encoded;
+
+    const subject = `Quiz Review: ${quiz.title}`;
+    const text = buildAttemptReportText(att, quiz);
+    const endpoint = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/sendAttemptReport`;
+
+    try {
+        const token = await currentUser.getIdToken();
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                toEmail: recipient,
+                subject,
+                text
+            })
+        });
+
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(payload?.error || `Email API error (${res.status})`);
+        }
+
+        showInfoModal(`Quiz report emailed to ${recipient}.`, 'Email Sent');
+    } catch (err) {
+        console.error('Email API request failed:', err);
+        showInfoModal(`Unable to send email. ${err?.message || ''}`.trim(), 'Email Failed');
+    }
 }
 
 function renderAttemptDetailView(att, quiz, options = {}) {

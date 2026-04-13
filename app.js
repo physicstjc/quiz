@@ -488,7 +488,7 @@ studentCsvInput.onchange = async (e) => {
 };
 
 async function refreshStudentList() {
-    studentListContainer.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400">Loading students...</td></tr>`;
+    studentListContainer.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-gray-500 font-black uppercase tracking-widest">Loading students...</td></tr>`;
     try {
         const snap = await getDocs(collection(db, "students"));
         studentListContainer.innerHTML = "";
@@ -527,7 +527,7 @@ async function refreshStudentList() {
         });
 
         if (students.length === 0) {
-            studentListContainer.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400 italic">No matching students found.</td></tr>`;
+            studentListContainer.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-gray-500 font-bold italic">No matching students found.</td></tr>`;
             return;
         }
 
@@ -539,21 +539,22 @@ async function refreshStudentList() {
 
         students.forEach(s => {
             const row = document.createElement('tr');
+            row.className = "hover:bg-[#fffdec] transition-colors";
             row.innerHTML = `
                 <td class="p-5 w-12 text-center">
-                    <input type="checkbox" class="student-checkbox w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-email="${s.email}" onchange="toggleStudentSelection('${s.email}', this.checked)">
+                    <input type="checkbox" class="student-checkbox w-4 h-4 rounded border-black text-black focus:ring-0" data-email="${s.email}" onchange="toggleStudentSelection('${s.email}', this.checked)">
                 </td>
                 <td class="p-5 font-bold text-gray-800">${s.name}</td>
-                <td class="p-5 text-gray-500 font-mono text-sm">${s.email}</td>
-                <td class="p-5"><span class="bg-indigo-100 text-indigo-700 font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-widest">${s.class}</span></td>
+                <td class="p-5 text-gray-700 font-mono text-sm">${s.email}</td>
+                <td class="p-5"><span class="neo-badge bg-[#ffe030] text-black font-black text-[10px] px-3 py-1 uppercase tracking-widest">${s.class}</span></td>
                 <td class="p-5 text-right">
-                    <button class="text-red-400 hover:text-red-600 font-bold" onclick="deleteStudent('${s.email}')"><ion-icon name="close-circle"></ion-icon></button>
+                    <button class="neo-btn neo-btn-white p-2 text-red-600" onclick="deleteStudent('${s.email}')"><ion-icon name="trash-outline"></ion-icon></button>
                 </td>
             `;
             studentListContainer.appendChild(row);
         });
     } catch (err) {
-        studentListContainer.innerHTML = `<tr><td colspan="4" class="p-5 text-red-500 font-bold">Error: ${err.message}</td></tr>`;
+        studentListContainer.innerHTML = `<tr><td colspan="5" class="p-5 text-red-600 font-black">Error: ${err.message}</td></tr>`;
     }
 }
 

@@ -860,8 +860,11 @@ function renderQuestionBlock(q, qIndex) {
             theme: 'snow',
             modules: {
                 toolbar: [
-                    ['bold', 'italic', 'underline'],
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
                     [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'align': [] }],
+                    [{ 'color': [] }, { 'background': [] }],
                     ['link', 'image'],
                     ['clean']
                 ]

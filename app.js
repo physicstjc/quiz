@@ -1477,58 +1477,72 @@ async function downloadAttemptPdf(att, quiz) {
         return;
     }
 
-    const exportRoot = document.createElement('div');
-    exportRoot.style.position = 'fixed';
-    exportRoot.style.left = '-100000px';
-    exportRoot.style.top = '0';
-    exportRoot.style.width = '794px';
-    exportRoot.style.background = '#ffffff';
-    exportRoot.style.color = '#111111';
-    exportRoot.style.padding = '28px';
-    exportRoot.style.boxSizing = 'border-box';
-    exportRoot.style.fontFamily = 'Inter, system-ui, sans-serif';
-
-    const header = document.createElement('div');
-    header.innerHTML = `
-        <h1 style="margin:0 0 10px 0;font-size:28px;font-weight:900;">${quiz.title}</h1>
-        <p style="margin:0 0 6px 0;font-size:14px;font-weight:700;">Score: ${att.score} / ${att.totalQuestions}</p>
-        <p style="margin:0 0 22px 0;font-size:12px;color:#555;">Generated: ${new Date().toLocaleString()}</p>
-    `;
-
-    const reviewClone = reviewContainer.cloneNode(true);
-    reviewClone.style.maxHeight = 'none';
-    reviewClone.style.overflow = 'visible';
-
-    exportRoot.appendChild(header);
-    exportRoot.appendChild(reviewClone);
-    document.body.appendChild(exportRoot);
-
     try {
-        const canvas = await window.html2canvas(exportRoot, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: false,
-            backgroundColor: '#ffffff'
-        });
-
-        const imgData = canvas.toDataURL('image/png');
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-        let heightLeft = imgHeight;
-        let position = 0;
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        const questionCards = Array.from(reviewContainer.children);
+        if (questionCards.length === 0) {
+            showInfoModal('No question content found to export.', 'PDF Error');
+            return;
+        }
 
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
+        const margin = 24;
+        const drawWidth = pageWidth - margin * 2;
+        const drawHeight = pageHeight - margin * 2;
+
+        for (let i = 0; i < questionCards.length; i++) {
+            if (i > 0) pdf.addPage();
+
+            const exportRoot = document.createElement('div');
+            exportRoot.style.position = 'fixed';
+            exportRoot.style.left = '-100000px';
+            exportRoot.style.top = '0';
+            exportRoot.style.width = '794px';
+            exportRoot.style.background = '#ffffff';
+            exportRoot.style.color = '#111111';
+            exportRoot.style.padding = '24px';
+            exportRoot.style.boxSizing = 'border-box';
+            exportRoot.style.fontFamily = 'Inter, system-ui, sans-serif';
+
+            const header = document.createElement('div');
+            header.innerHTML = `
+                <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:900;line-height:1.2;">${quiz.title}</h1>
+                <p style="margin:0 0 4px 0;font-size:12px;font-weight:700;">Score: ${att.score} / ${att.totalQuestions}</p>
+                <p style="margin:0 0 14px 0;font-size:11px;color:#555;">Question ${i + 1} of ${questionCards.length}</p>
+            `;
+
+            const questionClone = questionCards[i].cloneNode(true);
+            questionClone.style.maxHeight = 'none';
+            questionClone.style.overflow = 'visible';
+
+            exportRoot.appendChild(header);
+            exportRoot.appendChild(questionClone);
+            document.body.appendChild(exportRoot);
+
+            const canvas = await window.html2canvas(exportRoot, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: '#ffffff'
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const imgAspect = canvas.width / canvas.height;
+            let finalW = drawWidth;
+            let finalH = finalW / imgAspect;
+            if (finalH > drawHeight) {
+                finalH = drawHeight;
+                finalW = finalH * imgAspect;
+            }
+
+            const x = margin + (drawWidth - finalW) / 2;
+            const y = margin + (drawHeight - finalH) / 2;
+            pdf.addImage(imgData, 'PNG', x, y, finalW, finalH);
+
+            document.body.removeChild(exportRoot);
         }
 
         const safeTitle = (quiz.title || 'quiz-report').replace(/[^a-z0-9-_]+/gi, '_').slice(0, 60);
@@ -1536,8 +1550,6 @@ async function downloadAttemptPdf(att, quiz) {
     } catch (err) {
         console.error('PDF export failed:', err);
         showInfoModal('PDF generation failed. If your images are from a restricted source, try opening each image once before exporting.', 'PDF Error');
-    } finally {
-        document.body.removeChild(exportRoot);
     }
 }
 

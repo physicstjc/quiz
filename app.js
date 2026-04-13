@@ -1477,6 +1477,30 @@ async function downloadAttemptPdf(att, quiz) {
         return;
     }
 
+    const waitForImages = async (root) => {
+        const imgs = Array.from(root.querySelectorAll('img'));
+        if (imgs.length === 0) return;
+
+        await Promise.all(imgs.map((img) => {
+            // Encourage CORS-enabled loading where supported.
+            if (img.src && /^https?:\/\//i.test(img.src)) {
+                img.crossOrigin = 'anonymous';
+                img.referrerPolicy = 'no-referrer';
+            }
+            img.loading = 'eager';
+            img.decoding = 'sync';
+
+            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+            return new Promise((resolve) => {
+                const done = () => resolve();
+                img.addEventListener('load', done, { once: true });
+                img.addEventListener('error', done, { once: true });
+                // Avoid hanging forever on broken image hosts.
+                setTimeout(done, 3500);
+            });
+        }));
+    };
+
     try {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -1521,6 +1545,8 @@ async function downloadAttemptPdf(att, quiz) {
             exportRoot.appendChild(header);
             exportRoot.appendChild(questionClone);
             document.body.appendChild(exportRoot);
+
+            await waitForImages(exportRoot);
 
             const canvas = await window.html2canvas(exportRoot, {
                 scale: 2,

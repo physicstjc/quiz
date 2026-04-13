@@ -1,0 +1,11 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": [
+    {
+      "bucket": "quiz-342ed.firebasestorage.app",
+      "rules": "storage.rules"
+    }
+  ]
+}

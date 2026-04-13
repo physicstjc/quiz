@@ -4,21 +4,21 @@ service cloud.firestore {
 
     // Allow ANYONE (including unauthenticated students) to search for quizzes by code
     match /quizzes/{quizId} {
-      allow read: if true; 
-      allow write: if request.auth != null && request.auth.token.email.lower().endsWith('@moe.edu.sg');
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email.lower().matches('.*@moe\\.edu\\.sg');
     }
 
     // Allow ANYONE to check if student email exists in the system
     match /students/{email} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.email.lower().endsWith('@moe.edu.sg');
+      allow write: if request.auth != null && request.auth.token.email.lower().matches('.*@moe\\.edu\\.sg');
     }
 
     // Allow students to submit quiz attempts
     match /quiz_attempts/{attemptId} {
       allow create: if true;
-      allow read: if true; // In simple apps, students may need to check their previous attempts too
-      allow update, delete: if request.auth != null && request.auth.token.email.lower().endsWith('@moe.edu.sg');
+      allow read: if true;
+      allow update, delete: if request.auth != null && request.auth.token.email.lower().matches('.*@moe\\.edu\\.sg');
     }
   }
 }

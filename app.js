@@ -10,6 +10,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const legacyStorage = getStorage(app, `gs://${firebaseConfig.projectId}.appspot.com`);
 const googleProvider = new GoogleAuthProvider();
 
 // App State
@@ -696,9 +697,21 @@ async function uploadImageToStorage(qId, file) {
 
     try {
         const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
-        const fileRef = ref(storage, storagePath);
-        const snapshot = await uploadBytes(fileRef, file);
-        return await getDownloadURL(snapshot.ref);
+        const tryUpload = async (targetStorage) => {
+            const fileRef = ref(targetStorage, storagePath);
+            const snapshot = await uploadBytes(fileRef, file);
+            return await getDownloadURL(snapshot.ref);
+        };
+
+        try {
+            return await tryUpload(storage);
+        } catch (firstError) {
+            const firstCode = firstError?.code || "";
+            if (firstCode === 'storage/invalid-default-bucket' || firstCode === 'storage/bucket-not-found') {
+                return await tryUpload(legacyStorage);
+            }
+            throw firstError;
+        }
     } catch (error) {
         console.error("Image upload failed:", error);
         const code = error?.code || "unknown";

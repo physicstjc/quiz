@@ -5,7 +5,11 @@ service firebase.storage {
     match /quiz-content/{uid}/{fileName} {
       allow read: if true;
       allow write: if request.auth != null
-                   && request.auth.token.email.lower().matches('.*@moe\\.edu\\.sg');
+                   && request.auth.uid == uid
+                   && request.auth.token.email != null
+                   && request.auth.token.email.lower().matches('.*@moe\\.edu\\.sg$')
+                   && request.resource.contentType.matches('image/(png|jpeg|jpg|gif)')
+                   && request.resource.size < 10 * 1024 * 1024;
     }
     // Deny everything else by default
     match /{allPaths=**} {

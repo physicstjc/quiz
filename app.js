@@ -12,6 +12,8 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 const legacyStorage = getStorage(app, `gs://${firebaseConfig.projectId}.appspot.com`);
 const googleProvider = new GoogleAuthProvider();
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif']);
+const IMAGE_FILE_ACCEPT = '.png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif';
 
 // App State
 let currentUser = null;
@@ -695,18 +697,25 @@ async function uploadImageToStorage(qId, file) {
         return null;
     }
 
-    if (!file.type || !file.type.startsWith('image/')) {
-        showInfoModal("Please select a valid image file.", "Upload Blocked");
+    const mimeType = (file.type || '').toLowerCase();
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+        showInfoModal("Only PNG, JPG/JPEG, or GIF files are allowed.", "Upload Blocked");
         return null;
     }
 
     try {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const extByMime = {
+            'image/png': 'png',
+            'image/jpeg': 'jpg',
+            'image/jpg': 'jpg',
+            'image/gif': 'gif'
+        };
+        const ext = extByMime[mimeType] || 'jpg';
         const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const tryUpload = async (targetStorage) => {
             const fileRef = ref(targetStorage, storagePath);
             const snapshot = await uploadBytes(fileRef, file, {
-                contentType: file.type,
+                contentType: mimeType,
                 cacheControl: 'public,max-age=31536000'
             });
             const url = await getDownloadURL(snapshot.ref);
@@ -747,7 +756,7 @@ function attachQuillHandlers(quill, qId) {
     toolbar.addHandler('image', () => {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = 'image/*';
+        input.accept = IMAGE_FILE_ACCEPT;
         input.click();
 
         input.onchange = async () => {
@@ -842,7 +851,7 @@ function renderQuestionBlock(q, qIndex) {
                                 <label class="cursor-pointer neo-btn neo-btn-white p-2 flex items-center gap-2 text-[10px] font-black">
                                     <ion-icon name="image-outline"></ion-icon>
                                     ${q.optionImages[i] ? 'Change Image' : 'Add Image'}
-                                    <input type="file" class="hidden" accept="image/*" onchange="window.uploadImage('${q.id}', this.files[0], 'optionImage', ${i})">
+                                    <input type="file" class="hidden" accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif" onchange="window.uploadImage('${q.id}', this.files[0], 'optionImage', ${i})">
                                 </label>
                                 ${q.optionImages[i] ? `
                                     <button onclick="window.updateOptionImage('${q.id}', ${i}, null); this.closest('.neo-brutal').querySelector('.opt-img-container').innerHTML = '';" class="neo-btn neo-btn-white p-2 text-red-600">

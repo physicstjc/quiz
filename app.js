@@ -732,7 +732,7 @@ window.uploadImage = async (qId, file, type, extra) => {
 
 function renderQuestionBlock(q, qIndex) {
     const qBlock = document.createElement('div');
-    qBlock.className = "q-block bg-white border-2 border-indigo-50 p-8 rounded-3xl mb-8 transition-all hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-50/50 group relative";
+    qBlock.className = "q-block neo-card p-8 mb-8 group relative";
     
     // Ensure optionImages exists for old quizzes being edited
     if (!q.optionImages) q.optionImages = [null, null, null, null];
@@ -740,16 +740,16 @@ function renderQuestionBlock(q, qIndex) {
     const editorId = `editor-${q.id}`;
     qBlock.innerHTML = `
         <!-- Floating Question Number Badge -->
-        <div class="absolute -top-4 -left-4 w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+        <div class="absolute -top-4 -left-4 w-12 h-12 bg-[#ffe030] border-[3px] border-black text-black flex items-center justify-center font-black text-xl shadow-[4px_4px_0px_#000] transition-transform">
            ${currentQuizQuestions.indexOf(q) + 1}
         </div>
 
         <div class="flex justify-between items-start mb-8 ml-6">
-            <h3 class="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+            <h3 class="text-xs font-black text-gray-600 uppercase tracking-widest flex items-center gap-2">
                 <ion-icon name="help-circle" class="text-lg"></ion-icon>
                 Question Details
             </h3>
-            <button onclick="removeQuestion('${q.id}')" class="text-red-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-all flex items-center gap-2 text-xs font-bold">
+            <button onclick="removeQuestion('${q.id}')" class="neo-btn neo-btn-white p-2 text-xs">
                 <ion-icon name="trash-outline" class="text-lg"></ion-icon>
                 Remove
             </button>
@@ -757,33 +757,33 @@ function renderQuestionBlock(q, qIndex) {
 
         <div class="space-y-8 ml-6">
             <div>
-                <label class="block text-xs font-bold text-indigo-500 uppercase tracking-widest mb-3">Question Content</label>
+                <label class="block text-xs font-black text-gray-600 uppercase tracking-widest mb-3">Question Content</label>
                 <!-- Container for Quill Editor -->
-                <div class="border-2 border-indigo-50 rounded-2xl overflow-hidden focus-within:border-indigo-400 transition-colors">
+                <div class="neo-brutal overflow-hidden bg-white">
                     <div id="${editorId}" class="quill-editor h-64 bg-white"></div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                 ${[0, 1, 2, 3].map(i => `
-                    <div class="bg-indigo-50/30 p-6 rounded-2xl border border-transparent hover:border-indigo-100 transition-all">
+                    <div class="neo-brutal p-6 bg-[#fffdec]">
                         <div class="flex items-center justify-between mb-4">
                             <label class="flex items-center gap-3 cursor-pointer">
                                 <input type="radio" name="correct-${q.id}" ${q.correctAnswer === i ? 'checked' : ''} 
                                        onchange="window.updateQ('${q.id}', 'correctAnswer', ${i})" 
-                                       class="w-5 h-5 text-indigo-600 border-2 border-indigo-200 focus:ring-indigo-500">
-                                <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Option ${String.fromCharCode(65 + i)}</span>
+                                       class="w-5 h-5 text-black border-2 border-black focus:ring-0">
+                                <span class="text-xs font-black text-gray-600 uppercase tracking-wider">Option ${String.fromCharCode(65 + i)}</span>
                             </label>
                             
                             <!-- Option Image Upload -->
                             <div class="flex items-center gap-2">
-                                <label class="cursor-pointer text-indigo-500 hover:text-indigo-700 bg-white p-2 rounded-lg shadow-sm border border-indigo-50 transition-all flex items-center gap-2 text-[10px] font-bold">
+                                <label class="cursor-pointer neo-btn neo-btn-white p-2 flex items-center gap-2 text-[10px] font-black">
                                     <ion-icon name="image-outline"></ion-icon>
                                     ${q.optionImages[i] ? 'Change Image' : 'Add Image'}
                                     <input type="file" class="hidden" accept="image/*" onchange="window.uploadImage('${q.id}', this.files[0], 'optionImage', ${i})">
                                 </label>
                                 ${q.optionImages[i] ? `
-                                    <button onclick="window.updateOptionImage('${q.id}', ${i}, null); this.closest('.bg-indigo-50/30').querySelector('.opt-img-container').innerHTML = '';" class="text-red-400 hover:text-red-600 p-2">
+                                    <button onclick="window.updateOptionImage('${q.id}', ${i}, null); this.closest('.neo-brutal').querySelector('.opt-img-container').innerHTML = '';" class="neo-btn neo-btn-white p-2 text-red-600">
                                         <ion-icon name="close-circle-outline"></ion-icon>
                                     </button>
                                 ` : ''}
@@ -798,7 +798,7 @@ function renderQuestionBlock(q, qIndex) {
                             ` : ''}
                         </div>
 
-                        <input type="text" class="w-full bg-white border-2 border-indigo-50 p-4 rounded-xl outline-none focus:border-indigo-400 transition-all text-gray-700 font-medium placeholder:text-gray-300" 
+                        <input type="text" class="neo-input w-full bg-white p-4 text-gray-700 font-medium placeholder:text-gray-300" 
                                value="${q.options[i]}" placeholder="Type option text..." 
                                oninput="window.updateOption('${q.id}', ${i}, this.value)">
                     </div>
@@ -806,11 +806,11 @@ function renderQuestionBlock(q, qIndex) {
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-indigo-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <label class="block text-xs font-black text-gray-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <ion-icon name="bulb-outline"></ion-icon>
                     Solution Explanation (Optional)
                 </label>
-                <textarea class="w-full bg-white border-2 border-indigo-50 p-6 rounded-2xl outline-none focus:border-indigo-400 transition-all italic text-gray-600 placeholder:text-gray-300 min-h-[100px]" 
+                <textarea class="neo-input w-full bg-white p-6 italic text-gray-600 placeholder:text-gray-300 min-h-[100px]" 
                           placeholder="Why is this the correct answer?" 
                           oninput="window.updateQ('${q.id}', 'explanation', this.value)">${q.explanation || ""}</textarea>
             </div>

@@ -400,6 +400,24 @@
         </main>
     </div>
 
+    <!-- App Info Modal -->
+    <div id="modal-info" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl md:rounded-3xl shadow-2xl border overflow-hidden animate-in zoom-in duration-200">
+            <div class="p-6 md:p-8 border-b bg-yellow-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-yellow-200 text-yellow-900 flex items-center justify-center">
+                        <ion-icon name="information-circle" class="text-2xl"></ion-icon>
+                    </div>
+                    <h3 id="info-modal-title" class="text-lg md:text-xl font-black tracking-tight">Notice</h3>
+                </div>
+            </div>
+            <div class="p-6 md:p-8">
+                <p id="info-modal-message" class="text-sm md:text-base font-bold text-gray-800 leading-relaxed"></p>
+                <button id="info-modal-ok" class="mt-6 w-full neo-btn neo-btn-primary py-3">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Tailwind Play CDN for utility classes -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -423,18 +441,18 @@
 
     <!-- Share Quiz Modal (Teacher) -->
     <div id="modal-share-quiz" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-2xl md:rounded-3xl shadow-2xl border overflow-hidden animate-in zoom-in duration-300">
-            <div class="bg-blue-600 p-6 md:p-8 text-white text-center">
-                <div class="w-16 h-16 md:w-20 md:h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+        <div class="neo-card bg-white w-full max-w-lg p-0 overflow-hidden animate-in zoom-in duration-300">
+            <div class="bg-[#ffe030] border-b-[3px] border-black p-6 md:p-8 text-black text-center">
+                <div class="w-16 h-16 md:w-20 md:h-20 bg-white border-[3px] border-black rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4 shadow-[4px_4px_0px_#000]">
                     <ion-icon name="share-social-outline" class="text-3xl md:text-4xl"></ion-icon>
                 </div>
-                <h3 class="text-xl md:text-2xl font-black tracking-tight mb-1 md:mb-2">Invite Students</h3>
-                <p class="text-xs md:text-sm text-blue-100 font-medium italic">Share the link and code below.</p>
+                <h3 class="text-xl md:text-2xl font-black tracking-tighter uppercase mb-1 md:mb-2">Invite Students</h3>
+                <p class="text-xs md:text-sm font-bold italic">Share the link and code below.</p>
             </div>
             
             <div class="p-6 md:p-8 space-y-4 md:space-y-6">
                 <!-- QR Code Section -->
-                <div class="flex flex-col items-center justify-center p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl border-2 border-dashed border-gray-200">
+                <div class="neo-brutal flex flex-col items-center justify-center p-3 md:p-4 bg-gray-50 border-2 border-dashed border-gray-300 shadow-[4px_4px_0px_#000]">
                     <div id="share-qrcode" class="bg-white p-2 rounded-lg shadow-sm"></div>
                     <p class="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">Scan to join</p>
                 </div>
@@ -443,8 +461,8 @@
                 <div>
                     <label class="block text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Platform URL</label>
                     <div class="flex gap-2">
-                        <input type="text" id="share-url-input" readonly value="https://physicstjc.github.io/quiz/" class="flex-grow bg-gray-50 border-2 border-gray-100 p-3 md:p-4 rounded-xl font-mono text-xs md:text-sm outline-none">
-                        <button onclick="copyToClipboard('share-url-input')" class="bg-gray-100 hover:bg-gray-200 p-3 md:p-4 rounded-xl transition-all h-full flex items-center justify-center">
+                        <input type="text" id="share-url-input" readonly value="https://physicstjc.github.io/quiz/" class="neo-input flex-grow bg-gray-50 p-3 md:p-4 font-mono text-xs md:text-sm">
+                        <button onclick="copyToClipboard('share-url-input')" class="neo-btn neo-btn-white p-3 md:p-4 transition-all h-full flex items-center justify-center">
                             <ion-icon name="copy-outline"></ion-icon>
                         </button>
                     </div>
@@ -453,12 +471,12 @@
                 <!-- Code Section -->
                 <div>
                     <label class="block text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Quiz Join Code</label>
-                    <div class="text-center bg-blue-50 border-2 border-blue-100 p-4 md:p-8 rounded-xl md:rounded-2xl">
-                        <span id="share-code-display" class="text-3xl md:text-5xl font-black text-blue-600 tracking-[0.2em] font-mono">------</span>
+                    <div class="neo-brutal text-center bg-[#fffdec] p-4 md:p-8">
+                        <span id="share-code-display" class="text-3xl md:text-5xl font-black text-black tracking-[0.2em] font-mono">------</span>
                     </div>
                 </div>
 
-                <button id="close-share-modal" class="w-full bg-black text-white font-black py-3 md:py-4 rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg text-sm md:text-base">
+                <button id="close-share-modal" class="w-full neo-btn neo-btn-primary py-3 md:py-4 text-sm md:text-base">
                     Done
                 </button>
             </div>

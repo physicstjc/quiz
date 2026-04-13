@@ -38,6 +38,35 @@ const logoutBtn = document.getElementById('logout-btn');
 const errorMessage = document.getElementById('error-message');
 const studentEmailLogin = document.getElementById('student-email-login');
 const studentAccessBtn = document.getElementById('student-access-btn');
+const infoModal = document.getElementById('modal-info');
+const infoModalTitle = document.getElementById('info-modal-title');
+const infoModalMessage = document.getElementById('info-modal-message');
+const infoModalOk = document.getElementById('info-modal-ok');
+
+function showInfoModal(message, title = 'Notice') {
+    if (!infoModal || !infoModalTitle || !infoModalMessage) {
+        alert(message);
+        return;
+    }
+
+    infoModalTitle.innerText = title;
+    infoModalMessage.innerText = message;
+    infoModal.classList.remove('hidden');
+}
+
+function hideInfoModal() {
+    if (infoModal) infoModal.classList.add('hidden');
+}
+
+if (infoModalOk) {
+    infoModalOk.onclick = hideInfoModal;
+}
+
+if (infoModal) {
+    infoModal.onclick = (e) => {
+        if (e.target === infoModal) hideInfoModal();
+    };
+}
 
 // Show View helper
 function showView(viewName) {
@@ -588,12 +617,14 @@ async function refreshTeacherDashboard() {
                     <button class="neo-btn neo-btn-white p-3 flex items-center justify-center" title="Preview Quiz" onclick="previewQuiz('${docSnap.id}')">
                         <ion-icon name="eye" class="text-xl"></ion-icon>
                     </button>
+                    <button class="neo-btn neo-btn-white p-3 flex items-center justify-center" title="View Results" onclick="viewResults('${docSnap.id}')">
+                        <ion-icon name="bar-chart" class="text-xl"></ion-icon>
+                    </button>
                     <button class="neo-btn neo-btn-white p-3 flex items-center justify-center" title="Edit Quiz" onclick="editQuiz('${docSnap.id}')">
                         <ion-icon name="create-outline" class="text-xl"></ion-icon>
                     </button>
                     <button class="neo-btn neo-btn-white p-3 flex items-center justify-center" title="Assign to Class" onclick="openAssignModal('${docSnap.id}', '${quiz.title.replace(/'/g, "\\'")}')">
                         <ion-icon name="person-add" class="text-xl"></ion-icon>
-                    </button>
                     </button>
                 </div>
             `;
@@ -1459,7 +1490,7 @@ window.startQuiz = async (quizId, quizData = null) => {
         const attemptSnap = await getDoc(doc(db, "quiz_attempts", attemptId));
         
         if (attemptSnap.exists() && !activeQuiz.allowRetakes) {
-            alert("This quiz does not allow retakes. You have already submitted your response.");
+            showInfoModal("This quiz does not allow retakes. You have already submitted your response.", "Retake Not Allowed");
             return;
         }
     }

@@ -1553,9 +1553,20 @@ async function downloadAttemptPdf(att, quiz) {
 
     const printStyles = `
       <style>
-        @page { size: A4; margin: 14mm; }
+                @page { size: A4; margin: 18mm; }
         * { box-sizing: border-box; }
-        body { font-family: Inter, system-ui, -apple-system, sans-serif; color: #111; margin: 0; }
+                html, body { width: 100%; }
+                body {
+                    font-family: Inter, system-ui, -apple-system, sans-serif;
+                    color: #111;
+                    margin: 0;
+                    padding: 4mm;
+                    background: #fff;
+                }
+                .print-root {
+                    width: 100%;
+                    margin: 0 auto;
+                }
         .cover { margin-bottom: 12mm; }
         .cover h1 { margin: 0 0 6px 0; font-size: 24px; }
         .cover p { margin: 2px 0; font-size: 12px; color: #555; }
@@ -1580,7 +1591,7 @@ async function downloadAttemptPdf(att, quiz) {
         .join('');
 
     popup.document.open();
-    popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title>${printStyles}</head><body>${coverHtml}${pagesHtml}</body></html>`);
+    popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title>${printStyles}</head><body><main class="print-root">${coverHtml}${pagesHtml}</main></body></html>`);
     popup.document.close();
 
     const waitForPopupImages = async () => {

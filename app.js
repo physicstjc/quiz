@@ -1275,6 +1275,15 @@ window.viewResults = async (quizId) => {
                     `;
                 }).join('')}
             </div>
+
+            ${q.explanation ? `
+                <div class="mt-8 p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
+                    <h5 class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                        <ion-icon name="bulb-outline"></ion-icon> Explanation
+                    </h5>
+                    <div class="text-indigo-900 font-medium prose prose-sm max-w-none">${q.explanation}</div>
+                </div>
+            ` : ''}
         `;
         analysisContainer.appendChild(questionDiv);
 

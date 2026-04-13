@@ -9,8 +9,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstati
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-// Use explicit bucket to avoid invalid-default-bucket config issues.
-const storage = getStorage(app, `gs://${firebaseConfig.projectId}.appspot.com`);
+const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
 // App State
@@ -688,44 +687,77 @@ function addQuestionToBuilder() {
     renderQuestionBlock(q, currentQuizQuestions.length - 1);
 }
 
-// Function to handle image uploads for Quill
-async function handleQuillImageUpload(quill, qId) {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*');
-    input.click();
+async function uploadImageToStorage(qId, file) {
+    if (!file) return null;
+    if (!currentUser?.uid) {
+        showInfoModal("You must be signed in as a teacher before uploading images.", "Upload Blocked");
+        return null;
+    }
 
-    input.onchange = async () => {
-        const file = input.files[0];
-        if (!file) return;
+    try {
+        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
+        const fileRef = ref(storage, storagePath);
+        const snapshot = await uploadBytes(fileRef, file);
+        return await getDownloadURL(snapshot.ref);
+    } catch (error) {
+        console.error("Image upload failed:", error);
+        const code = error?.code || "unknown";
+        const details = error?.message || "No error details available.";
+        if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
+            showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nUpdate Storage rules to allow authenticated teachers to write.`, "Upload Failed");
+        } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
+            showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and ensure the bucket exists.`, "Upload Failed");
+        } else {
+            showInfoModal(`Upload failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
+        }
+        return null;
+    }
+}
 
-        if (!currentUser?.uid) {
-            showInfoModal("You must be signed in as a teacher before uploading images.", "Upload Blocked");
+function attachQuillHandlers(quill, qId) {
+    const toolbar = quill.getModule('toolbar');
+    if (!toolbar) return;
+
+    toolbar.addHandler('image', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.click();
+
+        input.onchange = async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+
+            const url = await uploadImageToStorage(qId, file);
+            if (!url) return;
+
+            const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+            quill.insertEmbed(range.index, 'image', url, 'user');
+            quill.setSelection(range.index + 1, 0, 'silent');
+        };
+    });
+
+    // Use a prompt-based link flow so links still work even when Quill tooltip UI is constrained.
+    toolbar.addHandler('link', () => {
+        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+        const currentFormat = quill.getFormat(range);
+        const existingLink = typeof currentFormat.link === 'string' ? currentFormat.link : '';
+        const rawUrl = prompt('Enter URL', existingLink || 'https://');
+        if (rawUrl === null) return;
+
+        const trimmed = rawUrl.trim();
+        if (!trimmed) {
+            quill.format('link', false, 'user');
             return;
         }
 
-        try {
-            const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
-            const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
-            const fileRef = ref(storage, storagePath);
-            const snapshot = await uploadBytes(fileRef, file);
-            const url = await getDownloadURL(snapshot.ref);
-
-            quill.insertEmbed(range.index, 'image', url);
-            quill.setSelection(range.index + 1);
-        } catch (error) {
-            console.error("Quill image upload failed:", error);
-            const code = error?.code || "unknown";
-            const details = error?.message || "No error details available.";
-            if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
-                showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nUpdate Storage rules to allow authenticated teachers to write.`, "Upload Failed");
-            } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
-                showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and ensure the bucket exists.`, "Upload Failed");
-            } else {
-                showInfoModal(`Failed to upload image.\n\nCode: ${code}\n${details}`, "Upload Failed");
-            }
+        const normalized = /^(https?:|mailto:|tel:)/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+        if (range.length === 0) {
+            quill.insertText(range.index, normalized, 'user');
+            quill.setSelection(range.index, normalized.length, 'silent');
         }
-    };
+        quill.format('link', normalized, 'user');
+    });
 }
 
 function renderQuestionBlock(q, qIndex) {
@@ -736,6 +768,12 @@ function renderQuestionBlock(q, qIndex) {
     if (!q.optionImages) q.optionImages = [null, null, null, null];
 
     const editorId = `editor-${q.id}`;
+    const explanationEditorId = `editor-explanation-${q.id}`;
+    const optionEditorIds = [0, 1, 2, 3].map(i => `editor-option-${q.id}-${i}`);
+
+    if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) {
+        q.options = ["", "", "", ""];
+    }
     qBlock.innerHTML = `
         <!-- Floating Question Number Badge -->
         <div class="absolute -top-4 -left-4 w-12 h-12 bg-[#ffe030] border-[3px] border-black text-black flex items-center justify-center font-black text-xl shadow-[4px_4px_0px_#000] transition-transform">
@@ -757,7 +795,7 @@ function renderQuestionBlock(q, qIndex) {
             <div>
                 <label class="block text-xs font-black text-gray-600 uppercase tracking-widest mb-3">Question Content</label>
                 <!-- Container for Quill Editor -->
-                <div class="neo-brutal overflow-hidden bg-white">
+                <div class="neo-brutal overflow-visible bg-white">
                     <div id="${editorId}" class="quill-editor h-64 bg-white"></div>
                 </div>
             </div>
@@ -796,9 +834,10 @@ function renderQuestionBlock(q, qIndex) {
                             ` : ''}
                         </div>
 
-                        <input type="text" class="neo-input w-full bg-white p-4 text-gray-700 font-medium placeholder:text-gray-300" 
-                               value="${q.options[i]}" placeholder="Type option text..." 
-                               oninput="window.updateOption('${q.id}', ${i}, this.value)">
+                        <label class="block text-[10px] font-black text-gray-600 uppercase tracking-wider mb-2">Option Content</label>
+                        <div class="neo-brutal overflow-visible bg-white">
+                            <div id="${optionEditorIds[i]}" class="quill-editor bg-white min-h-[110px]"></div>
+                        </div>
                     </div>
                 `).join('')}
             </div>
@@ -808,42 +847,52 @@ function renderQuestionBlock(q, qIndex) {
                     <ion-icon name="bulb-outline"></ion-icon>
                     Solution Explanation (Optional)
                 </label>
-                <textarea class="neo-input w-full bg-white p-6 italic text-gray-600 placeholder:text-gray-300 min-h-[100px]" 
-                          placeholder="Why is this the correct answer?" 
-                          oninput="window.updateQ('${q.id}', 'explanation', this.value)">${q.explanation || ""}</textarea>
+                <div class="neo-brutal overflow-visible bg-white">
+                    <div id="${explanationEditorId}" class="quill-editor bg-white min-h-[120px]"></div>
+                </div>
             </div>
         </div>
     `;
     questionsContainer.appendChild(qBlock);
 
-    // Initialize Quill for this specific question
-    const quill = new Quill(`#${editorId}`, {
-        theme: 'snow',
-        modules: {
-            toolbar: [
-                ['bold', 'italic', 'underline'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['clean']
-            ]
-        },
-        placeholder: 'Write your question here...'
+    const buildEditor = (selector, placeholder, initialValue, onChange) => {
+        const editor = new Quill(selector, {
+            theme: 'snow',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['link', 'image'],
+                    ['clean']
+                ]
+            },
+            placeholder
+        });
+
+        if (initialValue) {
+            editor.root.innerHTML = initialValue;
+        }
+
+        attachQuillHandlers(editor, q.id);
+        editor.on('text-change', () => onChange(editor.root.innerHTML));
+        return editor;
+    };
+
+    // Question body editor
+    buildEditor(`#${editorId}`, 'Write your question here...', q.text, (html) => {
+        window.updateQ(q.id, 'text', html);
     });
 
-    // Load initial content if editing
-    if (q.text) {
-        quill.root.innerHTML = q.text;
-    }
-
-    // Custom image handler for Quill to upload to Firebase instead of base64
-    quill.getModule('toolbar').addHandler('image', () => {
-        handleQuillImageUpload(quill, q.id);
+    // Option editors
+    optionEditorIds.forEach((optionEditorId, i) => {
+        buildEditor(`#${optionEditorId}`, `Write option ${String.fromCharCode(65 + i)}...`, q.options[i] || '', (html) => {
+            window.updateOption(q.id, i, html);
+        });
     });
 
-    // Sync content to state
-    quill.on('text-change', () => {
-        // Use root.innerHTML to get the rich text content
-        window.updateQ(q.id, 'text', quill.root.innerHTML);
+    // Feedback / explanation editor
+    buildEditor(`#${explanationEditorId}`, 'Why is this the correct answer?', q.explanation || '', (html) => {
+        window.updateQ(q.id, 'explanation', html);
     });
 }
 
@@ -890,30 +939,11 @@ window.updateOption = (id, optIdx, val) => {
 
 window.uploadImage = async (qId, file, type, extra) => {
     if (!file) return;
-    if (!currentUser?.uid) {
-        showInfoModal("You must be signed in as a teacher before uploading images.", "Upload Blocked");
-        return;
-    }
+    const url = await uploadImageToStorage(qId, file);
+    if (!url) return;
 
-    try {
-        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
-        const fileRef = ref(storage, storagePath);
-        const snapshot = await uploadBytes(fileRef, file);
-        const url = await getDownloadURL(snapshot.ref);
-
-        if (type === 'optionImage') {
-            window.updateOptionImage(qId, extra, url);
-        }
-    } catch (err) {
-        const code = err?.code || "unknown";
-        const details = err?.message || "No error details available.";
-        if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
-            showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nUpdate Storage rules to allow authenticated teachers to write.`, "Upload Failed");
-        } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
-            showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and ensure the bucket exists.`, "Upload Failed");
-        } else {
-            showInfoModal(`Upload failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
-        }
+    if (type === 'optionImage') {
+        window.updateOptionImage(qId, extra, url);
     }
 };
 
@@ -1432,13 +1462,14 @@ window.viewAttemptDetail = async (attemptId) => {
                         }
 
                         const hasImage = q.optionImages && q.optionImages[i];
-                        const hasText = opt && opt.trim().length > 0;
+                        const stripped = (opt || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
+                        const hasText = stripped.length > 0 || /<img[\s>]/i.test(opt || '');
 
                         return `
                             <div class="p-4 rounded-xl flex items-center justify-between font-bold ${style}">
                                 <div class="flex-1 space-y-2">
                                     ${hasImage ? `<img src="${q.optionImages[i]}" class="max-h-32 object-contain rounded-lg border bg-white shadow-sm">` : ''}
-                                    ${hasText ? `<span>${opt}</span>` : (!hasImage ? `<span class="italic text-gray-300">Empty option</span>` : '')}
+                                    ${hasText ? `<div class="prose prose-sm max-w-none">${opt}</div>` : (!hasImage ? `<span class="italic text-gray-300">Empty option</span>` : '')}
                                 </div>
                                 <span class="text-2xl ml-4">${icon}</span>
                             </div>
@@ -1451,7 +1482,7 @@ window.viewAttemptDetail = async (attemptId) => {
                         <h5 class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1">
                             <ion-icon name="bulb-outline"></ion-icon> Explanation
                         </h5>
-                        <p class="text-indigo-900 font-medium">${q.explanation}</p>
+                        <div class="text-indigo-900 font-medium prose prose-sm max-w-none">${q.explanation}</div>
                     </div>
                 ` : ''}
             `;
@@ -1556,7 +1587,8 @@ function renderQuizQuestion() {
 
     optionsTarget.innerHTML = "";
     q.options.forEach((opt, i) => {
-        const hasText = opt && opt.trim().length > 0;
+        const stripped = (opt || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
+        const hasText = stripped.length > 0 || /<img[\s>]/i.test(opt || '');
         const hasImage = q.optionImages && q.optionImages[i];
         
         const btn = document.createElement('button');
@@ -1569,7 +1601,7 @@ function renderQuizQuestion() {
             </div>
             <div class="flex-1 space-y-3">
                 ${hasImage ? `<img src="${q.optionImages[i]}" class="w-full max-h-48 object-contain rounded-lg border-2 border-black bg-white shadow-[2px_2px_0px_black]">` : ''}
-                ${hasText ? `<span class="block">${opt}</span>` : (!hasImage ? `<span class="text-gray-300 italic">Empty option</span>` : '')}
+                ${hasText ? `<div class="prose prose-sm max-w-none">${opt}</div>` : (!hasImage ? `<span class="text-gray-300 italic">Empty option</span>` : '')}
             </div>
         `;
         btn.onclick = () => {

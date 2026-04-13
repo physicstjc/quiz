@@ -695,46 +695,25 @@ async function uploadImageToStorage(qId, file) {
         return null;
     }
 
+    if (!file.type || !file.type.startsWith('image/')) {
+        showInfoModal("Please select a valid image file.", "Upload Blocked");
+        return null;
+    }
+
     try {
-        // Primary strategy: embed a compressed image directly in quiz content.
-        // This avoids Firebase Storage/rules issues and keeps authoring reliable.
-        const embeddedUrl = await convertImageToDataUrl(file);
-
-        // Try cloud upload in background for smaller payloads, but do not block editor UX.
-        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
-        if (embeddedUrl.length < 700000) {
-            try {
-                const tryUpload = async (targetStorage) => {
-                    const fileRef = ref(targetStorage, storagePath);
-                    const snapshot = await uploadBytes(fileRef, file);
-                    return await getDownloadURL(snapshot.ref);
-                };
-
-                try {
-                    return await tryUpload(storage);
-                } catch (firstError) {
-                    const firstCode = firstError?.code || "";
-                    if (firstCode === 'storage/invalid-default-bucket' || firstCode === 'storage/bucket-not-found') {
-                        return await tryUpload(legacyStorage);
-                    }
-                    throw firstError;
-                }
-            } catch (cloudErr) {
-                console.warn("Cloud upload failed; using embedded image fallback.", cloudErr);
-                return embeddedUrl;
-            }
-        }
-
-        return embeddedUrl;
-    } catch (embedError) {
-        console.error("Embedded image conversion failed:", embedError);
-
-        // Secondary fallback: attempt Firebase upload when local conversion fails.
-        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}`;
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const storagePath = `quiz-content/${currentUser.uid}/${qId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const tryUpload = async (targetStorage) => {
             const fileRef = ref(targetStorage, storagePath);
-            const snapshot = await uploadBytes(fileRef, file);
-            return await getDownloadURL(snapshot.ref);
+            const snapshot = await uploadBytes(fileRef, file, {
+                contentType: file.type,
+                cacheControl: 'public,max-age=31536000'
+            });
+            const url = await getDownloadURL(snapshot.ref);
+            if (!url.startsWith('https://')) {
+                throw new Error('Non-HTTPS download URL returned by Firebase Storage.');
+            }
+            return url;
         };
 
         try {
@@ -751,49 +730,14 @@ async function uploadImageToStorage(qId, file) {
         const code = error?.code || "unknown";
         const details = error?.message || "No error details available.";
         if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
-            showInfoModal(`Image upload is blocked by Firebase Storage rules and local embedding also failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
+            showInfoModal(`Image upload is blocked by Firebase Storage rules.\n\nCode: ${code}\n${details}\n\nEnsure the signed-in teacher account has write permission.`, "Upload Failed");
         } else if (code === 'storage/invalid-default-bucket' || code === 'storage/bucket-not-found') {
-            showInfoModal(`Storage bucket configuration is invalid and local embedding also failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
+            showInfoModal(`Storage bucket configuration is invalid.\n\nCode: ${code}\n${details}\n\nCheck storageBucket in Firebase config and that the bucket exists.`, "Upload Failed");
         } else {
             showInfoModal(`Upload failed.\n\nCode: ${code}\n${details}`, "Upload Failed");
         }
         return null;
     }
-}
-
-function convertImageToDataUrl(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error("Failed to read image file."));
-        reader.onload = () => {
-            const img = new Image();
-            img.onerror = () => reject(new Error("Failed to decode image."));
-            img.onload = () => {
-                const maxDim = 1400;
-                const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-                const targetW = Math.max(1, Math.round(img.width * scale));
-                const targetH = Math.max(1, Math.round(img.height * scale));
-
-                const canvas = document.createElement('canvas');
-                canvas.width = targetW;
-                canvas.height = targetH;
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error("Canvas context unavailable."));
-                    return;
-                }
-
-                ctx.drawImage(img, 0, 0, targetW, targetH);
-                const isPng = (file.type || '').toLowerCase().includes('png');
-                const mime = isPng ? 'image/png' : 'image/jpeg';
-                const quality = isPng ? undefined : 0.82;
-                resolve(canvas.toDataURL(mime, quality));
-            };
-            img.src = reader.result;
-        };
-        reader.readAsDataURL(file);
-    });
 }
 
 function attachQuillHandlers(quill, qId) {
